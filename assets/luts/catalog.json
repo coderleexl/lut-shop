@@ -1,0 +1,84 @@
+{
+  "generatedAt": "2026-06-11",
+  "localCachePolicy": "raw archives and extracted LUT files are local-only and ignored by Git",
+  "downloaded": [
+    {
+      "id": "sony-cine-luts",
+      "name": "Sony Cine LUTs",
+      "provider": "Sony Cine",
+      "sourceUrl": "https://sony-cinematography.com/resources/luts/",
+      "status": "downloaded",
+      "localRawDir": "assets/luts/raw/sony-cine",
+      "localExtractedDir": "assets/luts/extracted/sony-cine",
+      "archiveCount": 18,
+      "effectiveFileCount": 18,
+      "notes": "Public Sony Cine resource page with individual .cube.zip downloads for VENICE/BURANO style and monitoring LUTs."
+    },
+    {
+      "id": "arri-logc-lut-packages",
+      "name": "ARRI LogC3 / LogC4 LUT Packages",
+      "provider": "ARRI",
+      "sourceUrl": "https://www.arri.com/en/learn-help/learn-help-camera-system/tools/lut-generator",
+      "status": "downloaded",
+      "localRawDir": "assets/luts/raw/arri",
+      "localExtractedDir": "assets/luts/extracted/arri",
+      "archiveCount": 2,
+      "effectiveFileCount": 70,
+      "notes": "Official ARRI LogC3 and LogC4 .cube color-space conversion packages."
+    },
+    {
+      "id": "panasonic-vlog-v709",
+      "name": "Panasonic V-Log / V-Gamut to V-709 LUT",
+      "provider": "Panasonic",
+      "sourceUrl": "https://av.jpn.support.panasonic.com/support/global/cs/dsc/download/lut/index.html",
+      "status": "downloaded",
+      "localRawDir": "assets/luts/raw/panasonic",
+      "localExtractedDir": "assets/luts/extracted/panasonic",
+      "archiveCount": 1,
+      "effectiveFileCount": 2,
+      "notes": "Official Panasonic package containing .cube and camera .vlt variants."
+    }
+  ],
+  "pendingManualReview": [
+    {
+      "id": "sony-look-profile",
+      "name": "Sony Official Look Profile / LUT Library",
+      "provider": "Sony Support",
+      "sourceUrl": "https://www.sony.com/electronics/support/software/00263050",
+      "status": "pending_manual_download",
+      "reason": "Sony support page lists S-Gamut/S-Log2 and S-Gamut3.Cine/S-Log3 downloads, but direct archive URLs were not exposed in non-JavaScript HTML."
+    },
+    {
+      "id": "color-grading-central-free-luts",
+      "name": "Color Grading Central Free LUTs",
+      "provider": "Color Grading Central",
+      "sourceUrl": "https://www.colorgradingcentral.com/free-luts/",
+      "status": "pending_manual_review",
+      "reason": "Current page delivers LUTs through CineDream's installer/export workflow rather than direct .cube archives."
+    },
+    {
+      "id": "fixthephoto-free-luts",
+      "name": "FixThePhoto Free LUTs",
+      "provider": "FixThePhoto",
+      "sourceUrl": "https://fixthephoto.com/free-luts",
+      "status": "pending_license_review",
+      "reason": "Free .cube packs are listed, but redistribution/use terms should be reviewed before bundling."
+    },
+    {
+      "id": "on1-free-luts",
+      "name": "ON1 Free LUTs",
+      "provider": "ON1",
+      "sourceUrl": "https://www.on1.com/free/luts/",
+      "status": "pending_manual_download",
+      "reason": "ON1 download flow requires JavaScript/email submission."
+    },
+    {
+      "id": "premiumbeat-free-lut-roundup",
+      "name": "PremiumBeat Free LUT Roundup",
+      "provider": "PremiumBeat",
+      "sourceUrl": "https://www.premiumbeat.com/blog/29-free-luts-for-video/",
+      "status": "reference_only",
+      "reason": "Roundup points to multiple third-party packs; each source should be reviewed individually before download or bundling."
+    }
+  ]
+}
