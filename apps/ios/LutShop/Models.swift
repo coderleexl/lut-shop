@@ -40,7 +40,7 @@ enum PhotoSortOption: String, CaseIterable, Identifiable {
     var title: String { String(localized: String.LocalizationValue(rawValue)) }
 }
 
-enum LutCategory: String, CaseIterable, Identifiable {
+enum LutCategory: String, CaseIterable, Identifiable, Codable {
     case portrait = "Portrait"
     case landscape = "Landscape"
     case film = "Film"
@@ -52,10 +52,80 @@ enum LutCategory: String, CaseIterable, Identifiable {
     var title: String { String(localized: String.LocalizationValue(rawValue)) }
 }
 
+struct LutCategoryGroup: Identifiable, Equatable, Codable {
+    var id: String
+    var title: String
+    var category: LutCategory
+    var isSystem: Bool
+}
+
+enum ImportSource: String, CaseIterable, Identifiable {
+    case photoLibrary = "Photo Library"
+    case filePicker = "Files"
+    case ftpCamera = "FTP Camera"
+
+    var id: String { rawValue }
+    var title: String { String(localized: String.LocalizationValue(rawValue)) }
+}
+
+enum CameraConnectionStatus: String {
+    case idle = "Ready"
+    case waiting = "Waiting"
+    case receiving = "Receiving"
+    case stopped = "Stopped"
+
+    var title: String { String(localized: String.LocalizationValue(rawValue)) }
+}
+
+enum CameraImportFormat: String, CaseIterable, Identifiable {
+    case jpg = "JPG"
+    case raw = "RAW"
+    case rawJpg = "RAW + JPG"
+
+    var id: String { rawValue }
+    var title: String { rawValue }
+}
+
+struct CameraDevice: Identifiable, Equatable {
+    let id: String
+    var name: String
+    var model: String
+    var source: ImportSource
+    var hostHint: String
+    var port: Int
+    var username: String
+    var isDiscovered: Bool = false
+}
+
+struct CameraImportSettings: Equatable {
+    var format: CameraImportFormat = .rawJpg
+    var autoCreateSession = true
+    var groupRawJpgPairs = true
+    var skipDuplicateFiles = true
+}
+
+struct FtpReceiverConfiguration: Equatable {
+    var port: Int = 2121
+    var username: String = "lutshop"
+    var password: String = "lutshop"
+}
+
+struct CameraSession: Identifiable, Equatable {
+    let id: String
+    var name: String
+    var source: ImportSource
+    var deviceName: String
+    var startedAt: Date
+    var status: CameraConnectionStatus
+    var receivedCount: Int
+    var lastFileName: String?
+}
+
 struct Photo: Identifiable, Equatable {
     let id: String
     var fileName: String
     var imageName: String
+    var imagePath: String? = nil
     var sessionName: String
     var status: PhotoStatus
     var isFavorite: Bool
@@ -65,17 +135,44 @@ struct Photo: Identifiable, Equatable {
     var lutIntensity: Double
     var recommendedLutIds: [String]
     var palette: [Color]
+
+    var formatBadgeText: String {
+        let rawExtensions = Set(["raw", "dng", "arw", "cr2", "cr3", "nef", "nrw", "orf", "pef", "raf", "rw2", "srw"])
+        let jpegExtensions = Set(["jpg", "jpeg"])
+
+        let candidates = [fileName, imagePath ?? ""]
+        for candidate in candidates where !candidate.isEmpty {
+            let ext = (candidate as NSString).pathExtension.lowercased()
+            guard !ext.isEmpty else { continue }
+            if rawExtensions.contains(ext) {
+                return "RAW"
+            }
+            if jpegExtensions.contains(ext) {
+                return "JPG"
+            }
+            return ext.uppercased()
+        }
+
+        return status.rawValue
+    }
 }
 
 struct LutPreset: Identifiable, Equatable {
     let id: String
     var name: String
     var category: LutCategory
+    var categoryGroupId: String? = nil
     var tags: [String]
     var previewColors: [Color]
     var isFavorite: Bool
     var usageCount: Int
     var confidence: Int?
+    var sourceFileName: String? = nil
+    var cubeSize: Int? = nil
+    var cubeEntryCount: Int? = nil
+    var provider: String? = nil
+    var isBundled: Bool = false
+    var userPath: String? = nil
 }
 
 struct ExportSettings: Equatable {

@@ -11,28 +11,22 @@ protocol LutShopCoreBridge {
     func toggleFavorite(lut: LutPreset) -> LutPreset
     func rename(lut: LutPreset, to name: String) -> LutPreset
     func makeImportedLut(existingCount: Int) -> LutPreset
+    func loadSummary(for lut: LutPreset) -> String?
+    func previewPixelSummary(for lut: LutPreset) -> String?
 }
 
 final class MockLutShopCoreBridge: LutShopCoreBridge {
     func loadInitialPhotos() -> [Photo] {
-        [
-            Photo(id: "p1", fileName: "IMG_0123.CR3", imageName: "photo-portrait", sessionName: "2026-06-08 Studio Shoot", status: .raw, isFavorite: false, isSelected: false, rating: 3, appliedLutId: nil, lutIntensity: 0.72, recommendedLutIds: ["l1", "l3"], palette: [Color(red: 0.43, green: 0.50, blue: 0.24), .green, .black]),
-            Photo(id: "p2", fileName: "IMG_0124.CR3", imageName: "photo-mountain", sessionName: "2026-06-08 Studio Shoot", status: .raw, isFavorite: true, isSelected: false, rating: 0, appliedLutId: nil, lutIntensity: 0.55, recommendedLutIds: ["l2"], palette: [.blue, .cyan, .black]),
-            Photo(id: "p3", fileName: "IMG_0125.CR3", imageName: "photo-beach", sessionName: "2026-06-08 Studio Shoot", status: .raw, isFavorite: false, isSelected: false, rating: 5, appliedLutId: nil, lutIntensity: 0.64, recommendedLutIds: ["l3"], palette: [.orange, .brown, .black]),
-            Photo(id: "p4", fileName: "IMG_0126.CR3", imageName: "photo-car", sessionName: "2026-06-08 Studio Shoot", status: .raw, isFavorite: true, isSelected: false, rating: 0, appliedLutId: nil, lutIntensity: 0.42, recommendedLutIds: ["l4"], palette: [.gray, .black, .brown]),
-            Photo(id: "p5", fileName: "IMG_0127.CR3", imageName: "photo-man", sessionName: "2026-06-08 Studio Shoot", status: .raw, isFavorite: true, isSelected: false, rating: 4, appliedLutId: nil, lutIntensity: 0.51, recommendedLutIds: ["l1"], palette: [.gray, .black, .white]),
-            Photo(id: "p6", fileName: "IMG_0128.CR3", imageName: "photo-street", sessionName: "2026-06-08 Studio Shoot", status: .edited, isFavorite: false, isSelected: false, rating: 0, appliedLutId: "l2", lutIntensity: 0.68, recommendedLutIds: ["l2"], palette: [.brown, .orange, .black]),
-            Photo(id: "p7", fileName: "IMG_0129.CR3", imageName: "photo-blackcar", sessionName: "2026-06-08 Studio Shoot", status: .raw, isFavorite: true, isSelected: false, rating: 0, appliedLutId: nil, lutIntensity: 0.38, recommendedLutIds: ["l5"], palette: [.black, .gray, .brown]),
-            Photo(id: "p8", fileName: "IMG_0130.CR3", imageName: "photo-chair", sessionName: "2026-06-08 Studio Shoot", status: .raw, isFavorite: false, isSelected: false, rating: 5, appliedLutId: nil, lutIntensity: 0.57, recommendedLutIds: ["l3"], palette: [.brown, .yellow, .black]),
-            Photo(id: "p9", fileName: "IMG_0131.CR3", imageName: "photo-forest", sessionName: "2026-06-08 Studio Shoot", status: .exported, isFavorite: false, isSelected: false, rating: 0, appliedLutId: "l2", lutIntensity: 0.76, recommendedLutIds: ["l2"], palette: [.yellow, .green, .gray]),
-            Photo(id: "p10", fileName: "IMG_0132.CR3", imageName: "photo-coast", sessionName: "2026-06-08 Studio Shoot", status: .raw, isFavorite: true, isSelected: false, rating: 0, appliedLutId: nil, lutIntensity: 0.43, recommendedLutIds: ["l4"], palette: [.blue, .gray, .black]),
-            Photo(id: "p11", fileName: "IMG_0133.CR3", imageName: "photo-girl", sessionName: "2026-06-08 Studio Shoot", status: .raw, isFavorite: true, isSelected: false, rating: 0, appliedLutId: nil, lutIntensity: 0.61, recommendedLutIds: ["l1"], palette: [.brown, .orange, .black]),
-            Photo(id: "p12", fileName: "IMG_0134.CR3", imageName: "photo-desert", sessionName: "2026-06-08 Studio Shoot", status: .raw, isFavorite: false, isSelected: false, rating: 0, appliedLutId: nil, lutIntensity: 0.49, recommendedLutIds: ["l2"], palette: [.orange, .yellow, .brown])
-        ]
+        []
     }
 
     func loadLuts() -> [LutPreset] {
-        [
+        let bundled = Self.loadBundledLuts()
+        if !bundled.isEmpty {
+            return bundled
+        }
+
+        return [
             LutPreset(id: "l1", name: "Clean Portrait", category: .portrait, tags: ["skin", "soft", "studio"], previewColors: [.brown, .orange, .white], isFavorite: true, usageCount: 68, confidence: 94),
             LutPreset(id: "l2", name: "Alpine Teal", category: .landscape, tags: ["mountain", "cool", "travel"], previewColors: [.blue, .cyan, .green], isFavorite: false, usageCount: 41, confidence: 88),
             LutPreset(id: "l3", name: "Gold Hour Film", category: .film, tags: ["warm", "sunset", "grain"], previewColors: [.orange, .yellow, .brown], isFavorite: true, usageCount: 92, confidence: 91),
@@ -99,5 +93,65 @@ final class MockLutShopCoreBridge: LutShopCoreBridge {
             usageCount: 0,
             confidence: nil
         )
+    }
+
+    func loadSummary(for lut: LutPreset) -> String? {
+        guard let sourceFileName = lut.sourceFileName else { return nil }
+        return LutShopCppBridge.loadSummary(forBundledLutNamed: sourceFileName)
+    }
+
+    func previewPixelSummary(for lut: LutPreset) -> String? {
+        guard let sourceFileName = lut.sourceFileName else { return nil }
+        return LutShopCppBridge.previewPixelSummary(forBundledLutNamed: sourceFileName)
+    }
+
+    private static func loadBundledLuts() -> [LutPreset] {
+        LutShopCppBridge.bundledLutMetadata().compactMap { item in
+            guard
+                let id = item["id"] as? String,
+                let name = item["name"] as? String,
+                let fileName = item["fileName"] as? String
+            else {
+                return nil
+            }
+
+            let category = category(from: item["category"] as? String)
+            return LutPreset(
+                id: id,
+                name: name,
+                category: category,
+                tags: ["sony", "cube", fileName],
+                previewColors: previewColors(for: category),
+                isFavorite: false,
+                usageCount: 0,
+                confidence: nil,
+                sourceFileName: fileName,
+                cubeSize: (item["cubeSize"] as? NSNumber)?.intValue,
+                cubeEntryCount: (item["entryCount"] as? NSNumber)?.intValue,
+                provider: item["provider"] as? String,
+                isBundled: true
+            )
+        }
+    }
+
+    private static func category(from rawValue: String?) -> LutCategory {
+        LutCategory.allCases.first { $0.rawValue == rawValue } ?? .custom
+    }
+
+    private static func previewColors(for category: LutCategory) -> [Color] {
+        switch category {
+        case .portrait:
+            return [.brown, .orange, .white]
+        case .landscape:
+            return [.blue, .cyan, .green]
+        case .film:
+            return [.black, .orange, .cyan]
+        case .blackWhite:
+            return [.black, .gray, .white]
+        case .commercial:
+            return [.black, .gray, .orange]
+        case .custom:
+            return [.accentGreen, .cyan, .white]
+        }
     }
 }

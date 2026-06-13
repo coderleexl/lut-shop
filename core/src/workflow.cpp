@@ -41,7 +41,20 @@ bool matchesSearch(const Photo& photo, const std::string& searchText) {
   }
   const auto query = lowerCopy(searchText);
   return lowerCopy(photo.fileName).find(query) != std::string::npos ||
-         lowerCopy(photo.sessionId).find(query) != std::string::npos;
+         lowerCopy(photo.sessionId).find(query) != std::string::npos ||
+         lowerCopy(photo.sessionName).find(query) != std::string::npos;
+}
+
+int statusRank(PhotoStatus status) {
+  switch (status) {
+    case PhotoStatus::Raw:
+      return 0;
+    case PhotoStatus::Edited:
+      return 1;
+    case PhotoStatus::Exported:
+      return 2;
+  }
+  return 0;
 }
 
 }  // namespace
@@ -55,6 +68,34 @@ std::vector<Photo> filterPhotos(const std::vector<Photo>& photos,
       result.push_back(photo);
     }
   }
+  return result;
+}
+
+std::vector<Photo> sortPhotos(const std::vector<Photo>& photos,
+                              PhotoSort sort) {
+  auto result = photos;
+  std::sort(result.begin(), result.end(), [sort](const Photo& lhs, const Photo& rhs) {
+    switch (sort) {
+      case PhotoSort::FileName:
+        return lhs.fileName < rhs.fileName;
+      case PhotoSort::Newest:
+        if (lhs.importedAt == rhs.importedAt) {
+          return lhs.fileName < rhs.fileName;
+        }
+        return lhs.importedAt > rhs.importedAt;
+      case PhotoSort::Rating:
+        if (lhs.rating == rhs.rating) {
+          return lhs.fileName < rhs.fileName;
+        }
+        return lhs.rating > rhs.rating;
+      case PhotoSort::Status:
+        if (lhs.status == rhs.status) {
+          return lhs.fileName < rhs.fileName;
+        }
+        return statusRank(lhs.status) < statusRank(rhs.status);
+    }
+    return lhs.fileName < rhs.fileName;
+  });
   return result;
 }
 
@@ -79,8 +120,8 @@ void toggleFavorite(std::vector<Photo>& photos, const std::string& photoId) {
 void applyLutToPhotos(std::vector<Photo>& photos,
                       const std::vector<std::string>& photoIds,
                       const std::string& lutId,
-                      std::uint8_t intensity) {
-  const auto clampedIntensity = std::min<std::uint8_t>(intensity, 100);
+                      float intensity) {
+  const auto clampedIntensity = std::clamp(intensity, 0.0F, 1.0F);
   for (auto& photo : photos) {
     if (containsId(photoIds, photo.id)) {
       photo.appliedLutId = lutId;

@@ -115,8 +115,11 @@ struct PreviewView: View {
         Group {
             if let photo = state.currentPhoto {
                 PhotoAssetView(
-                    imageName: isBefore ? photo.imageName : "preview-mountain",
-                    fallbackColors: isBefore ? [.gray, .black] : photo.palette
+                    imageName: photo.imageName,
+                    imagePath: photo.imagePath,
+                    fallbackColors: isBefore ? [.gray, .black] : photo.palette,
+                    lutFileName: isBefore ? nil : state.activeLut?.sourceFileName,
+                    lutIntensity: isBefore ? 0 : state.lutIntensity
                 )
             } else {
                 LinearGradient(colors: [.gray, .black], startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -148,6 +151,7 @@ struct PreviewView: View {
                 ForEach(state.recommendedLuts + state.luts.filter { !state.recommendedLuts.contains($0) }) { lut in
                     Button {
                         state.activeLutId = lut.id
+                        state.validateLutLoad(lut.id)
                     } label: {
                         VStack(alignment: .leading, spacing: 8) {
                             LutStrip(colors: lut.previewColors)
@@ -156,7 +160,7 @@ struct PreviewView: View {
                                 .font(.system(size: 12, weight: .semibold))
                                 .lineLimit(1)
                             if let confidence = lut.confidence {
-                                Text("CV \(confidence)%")
+                                Text(String(localized: "CV \(confidence)%"))
                                     .font(.system(size: 10, weight: .bold))
                                     .foregroundStyle(Color.accentGreen)
                             }
@@ -175,7 +179,7 @@ struct PreviewView: View {
     private var adjustmentPanel: some View {
         VStack(spacing: 14) {
             HStack {
-                Text("LUT Intensity")
+                Text(String(localized: "LUT Intensity"))
                     .font(.system(size: 14, weight: .semibold))
                 Spacer()
                 Text("\(Int(state.lutIntensity * 100))%")
@@ -188,15 +192,25 @@ struct PreviewView: View {
                     state.previewCompareEnabled.toggle()
                 }
                 .buttonStyle(.bordered)
-                Button("Undo") {
-                    state.lutIntensity = 0
+                Button(String(localized: "Undo")) {
+                    state.resetCurrentPhotoAdjustment()
                 }
                 .buttonStyle(.bordered)
-                Button("Save") {
+                Button(String(localized: "Save")) {
                     state.applyActiveLutToCurrentPhoto()
                 }
                 .buttonStyle(.borderedProminent)
             }
+            Button {
+                state.syncCurrentAdjustmentToOtherSelectedPhotos()
+            } label: {
+                Label(String(localized: "Sync to Selected"), systemImage: "square.stack.3d.down.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(state.selectedPhotosExcludingCurrentCount == 0)
+            .opacity(state.selectedPhotosExcludingCurrentCount == 0 ? 0.48 : 1)
         }
         .padding(14)
         .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))

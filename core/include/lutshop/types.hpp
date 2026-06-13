@@ -44,14 +44,21 @@ struct Photo {
   std::string uri;
   std::string importedAt;
   std::string sessionId;
+  std::string sessionName;
   bool isFavorite = false;
   bool isSelected = false;
   std::uint8_t rating = 0;
   std::string appliedLutId;
-  std::uint8_t lutIntensity = 0;
+  float lutIntensity = 0.0F;
   PhotoStatus status = PhotoStatus::Raw;
   std::vector<std::string> analysisTags;
   std::vector<std::string> recommendedLutIds;
+};
+
+struct Session {
+  std::string id;
+  std::string name;
+  std::string createdAt;
 };
 
 struct Lut {
@@ -76,6 +83,11 @@ struct ExportSettings {
   ExportSize size = ExportSize::Original;
   ExportQuality quality = ExportQuality::High;
   bool preserveExif = true;
+};
+
+struct OperationResult {
+  bool success = false;
+  std::string message;
 };
 
 }  // namespace lutshop

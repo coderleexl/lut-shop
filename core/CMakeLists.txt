@@ -1,4 +1,10 @@
 add_library(lutshop_core STATIC
+  src/bridge_c.cpp
+  src/core.cpp
+  src/cube.cpp
+  src/import.cpp
+  src/lut_catalog.cpp
+  src/session.cpp
   src/workflow.cpp
   src/recommendation.cpp
 )

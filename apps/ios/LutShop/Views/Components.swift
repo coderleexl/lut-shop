@@ -52,6 +52,34 @@ struct BottomTabBar: View {
     }
 }
 
+struct MessageToast: View {
+    let message: String
+    var dismiss: () -> Void
+
+    var body: some View {
+        Button(action: dismiss) {
+            HStack(spacing: 10) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(Color.accentGreen)
+                Text(message)
+                    .font(.system(size: 14, weight: .bold))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.12)))
+            .shadow(color: .black.opacity(0.3), radius: 18, y: 8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(message))
+    }
+}
+
 struct SelectionActionBar: View {
     @EnvironmentObject private var state: LutShopAppState
     let photo: Photo
@@ -61,14 +89,20 @@ struct SelectionActionBar: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(.clear)
                 .overlay {
-                    PhotoAssetView(imageName: photo.imageName, fallbackColors: photo.palette)
+                    PhotoAssetView(
+                        imageName: photo.imageName,
+                        imagePath: photo.imagePath,
+                        fallbackColors: photo.palette,
+                        lutFileName: state.appliedLutFileName(for: photo),
+                        lutIntensity: photo.lutIntensity
+                    )
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .frame(width: 42, height: 42)
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.2)))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(state.selectedPhotos.count) selected")
+                Text(String(format: String(localized: "%d selected"), state.selectedPhotos.count))
                     .font(.system(size: 14, weight: .semibold))
                 Text(photo.fileName)
                     .font(.system(size: 12))
@@ -85,14 +119,14 @@ struct SelectionActionBar: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.white.opacity(0.78))
-            .accessibilityLabel(Text("Clear selection"))
+            .accessibilityLabel(Text(String(localized: "Clear selection")))
 
             ActionButton(title: String(localized: "Apply LUT"), icon: "wand.and.stars") {
                 state.selectedTab = .luts
             }
             Menu {
                 ForEach(1...5, id: \.self) { rating in
-                    Button("\(rating) Star") {
+                    Button(String(format: String(localized: "%d Star"), rating)) {
                         state.rateSelectedPhotos(rating)
                     }
                 }
@@ -108,7 +142,7 @@ struct SelectionActionBar: View {
                 .frame(width: 52)
             }
             .foregroundStyle(.white)
-            .accessibilityLabel(Text("Rate selected photos"))
+            .accessibilityLabel(Text(String(localized: "Rate selected photos")))
             ActionButton(title: String(localized: "Export"), icon: "square.and.arrow.up") {
                 state.selectedTab = .export
             }

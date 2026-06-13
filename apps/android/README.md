@@ -20,3 +20,10 @@ The native Compose shell now lives in `apps/android/app/src/main/java/com/lutsho
 - `ui/*Screen.kt`: Gallery, Preview, LUT Library, and Export screens based on the provided mobile reference image.
 
 The Gradle files are included for Android Studio import, but this environment does not currently have `gradle` installed, so Android compilation has not been run here.
+
+The next JNI smoke test should link the NDK build to `../../core` and call the C ABI in `core/include/lutshop/bridge_c.h`:
+
+- `lutshop_core_version()` to verify the shared library loads.
+- `lutshop_import_photo_count(...)` to validate Kotlin -> JNI -> C++ import plumbing.
+
+After that, wrap `lutshop::LutShopCore` from `core/include/lutshop/core.hpp` for session, import, sorting, LUT catalog, and recommendation operations.

@@ -4,5 +4,7 @@ build
 .DS_Store
 .superpowers/
 .codegraph/
+*.xcuserstate
+xcuserdata/
 assets/luts/raw/
 assets/luts/extracted/

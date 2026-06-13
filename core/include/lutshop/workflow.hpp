@@ -16,9 +16,19 @@ enum class PhotoFilter {
   Favorites,
 };
 
+enum class PhotoSort {
+  FileName,
+  Newest,
+  Rating,
+  Status,
+};
+
 std::vector<Photo> filterPhotos(const std::vector<Photo>& photos,
                                 PhotoFilter filter,
                                 const std::string& searchText);
+
+std::vector<Photo> sortPhotos(const std::vector<Photo>& photos,
+                              PhotoSort sort);
 
 void togglePhotoSelection(std::vector<Photo>& photos, const std::string& photoId);
 
@@ -27,7 +37,7 @@ void toggleFavorite(std::vector<Photo>& photos, const std::string& photoId);
 void applyLutToPhotos(std::vector<Photo>& photos,
                       const std::vector<std::string>& photoIds,
                       const std::string& lutId,
-                      std::uint8_t intensity);
+                      float intensity);
 
 void ratePhotos(std::vector<Photo>& photos,
                 const std::vector<std::string>& photoIds,

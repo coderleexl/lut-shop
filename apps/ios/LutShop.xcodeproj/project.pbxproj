@@ -18,7 +18,15 @@
 		100000000000000000000109 /* ExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000009 /* ExportView.swift */; };
 		10000000000000000000010A /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000B /* Localizable.xcstrings */; };
 		10000000000000000000010B /* PhotoAssetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000C /* PhotoAssetView.swift */; };
-		10000000000000000000010C /* PrototypePhotos in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000D /* PrototypePhotos */; };
+		10000000000000000000010C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000D /* Assets.xcassets */; };
+		10000000000000000000010D /* LutShopCppBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000F /* LutShopCppBridge.mm */; };
+		10000000000000000000010E /* ../../core/src/bridge_c.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000011 /* ../../core/src/bridge_c.cpp */; };
+		10000000000000000000010F /* ../../core/src/import.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000012 /* ../../core/src/import.cpp */; };
+		100000000000000000000110 /* ../../core/src/cube.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000013 /* ../../core/src/cube.cpp */; };
+		100000000000000000000111 /* BundledLuts in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000014 /* BundledLuts */; };
+		100000000000000000000112 /* CameraImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000015 /* CameraImportView.swift */; };
+		100000000000000000000113 /* CameraDiscoveryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000016 /* CameraDiscoveryService.swift */; };
+		100000000000000000000114 /* CameraReceiveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000018 /* CameraReceiveService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,7 +42,18 @@
 		10000000000000000000000A /* LutShop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LutShop.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		10000000000000000000000B /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		10000000000000000000000C /* PhotoAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAssetView.swift; sourceTree = "<group>"; };
-		10000000000000000000000D /* PrototypePhotos */ = {isa = PBXFileReference; lastKnownFileType = folder; path = PrototypePhotos; sourceTree = "<group>"; };
+		10000000000000000000000D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		10000000000000000000000E /* LutShopCppBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LutShopCppBridge.h; sourceTree = "<group>"; };
+		10000000000000000000000F /* LutShopCppBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = LutShopCppBridge.mm; sourceTree = "<group>"; };
+		100000000000000000000010 /* LutShop-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "LutShop-Bridging-Header.h"; sourceTree = "<group>"; };
+		100000000000000000000011 /* ../../core/src/bridge_c.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../../core/src/bridge_c.cpp; sourceTree = SOURCE_ROOT; };
+		100000000000000000000012 /* ../../core/src/import.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../../core/src/import.cpp; sourceTree = SOURCE_ROOT; };
+		100000000000000000000013 /* ../../core/src/cube.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ../../core/src/cube.cpp; sourceTree = SOURCE_ROOT; };
+		100000000000000000000014 /* BundledLuts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BundledLuts; sourceTree = "<group>"; };
+		100000000000000000000015 /* CameraImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraImportView.swift; sourceTree = "<group>"; };
+		100000000000000000000016 /* CameraDiscoveryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraDiscoveryService.swift; sourceTree = "<group>"; };
+		100000000000000000000017 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		100000000000000000000018 /* CameraReceiveService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraReceiveService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,7 +79,9 @@
 			isa = PBXGroup;
 			children = (
 				100000000000000000000003 /* AppState.swift */,
+				100000000000000000000017 /* Info.plist */,
 				100000000000000000000004 /* LutShopApp.swift */,
+				100000000000000000000010 /* LutShop-Bridging-Header.h */,
 				100000000000000000000001 /* Models.swift */,
 				100000000000000000000033 /* Core */,
 				100000000000000000000035 /* Resources */,
@@ -80,6 +101,13 @@
 		100000000000000000000033 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				100000000000000000000011 /* ../../core/src/bridge_c.cpp */,
+				100000000000000000000016 /* CameraDiscoveryService.swift */,
+				100000000000000000000018 /* CameraReceiveService.swift */,
+				100000000000000000000013 /* ../../core/src/cube.cpp */,
+				100000000000000000000012 /* ../../core/src/import.cpp */,
+				10000000000000000000000E /* LutShopCppBridge.h */,
+				10000000000000000000000F /* LutShopCppBridge.mm */,
 				100000000000000000000002 /* LutShopCoreBridge.swift */,
 			);
 			path = Core;
@@ -88,6 +116,7 @@
 		100000000000000000000034 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				100000000000000000000015 /* CameraImportView.swift */,
 				100000000000000000000005 /* Components.swift */,
 				100000000000000000000009 /* ExportView.swift */,
 				100000000000000000000006 /* GalleryView.swift */,
@@ -101,8 +130,9 @@
 		100000000000000000000035 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				10000000000000000000000D /* Assets.xcassets */,
 				10000000000000000000000B /* Localizable.xcstrings */,
-				10000000000000000000000D /* PrototypePhotos */,
+				100000000000000000000014 /* BundledLuts */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -166,8 +196,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				100000000000000000000111 /* BundledLuts in Resources */,
+				10000000000000000000010C /* Assets.xcassets in Resources */,
 				10000000000000000000010A /* Localizable.xcstrings in Resources */,
-				10000000000000000000010C /* PrototypePhotos in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -179,8 +210,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				100000000000000000000103 /* AppState.swift in Sources */,
+				10000000000000000000010E /* ../../core/src/bridge_c.cpp in Sources */,
+				100000000000000000000113 /* CameraDiscoveryService.swift in Sources */,
+				100000000000000000000114 /* CameraReceiveService.swift in Sources */,
+				100000000000000000000112 /* CameraImportView.swift in Sources */,
+				100000000000000000000110 /* ../../core/src/cube.cpp in Sources */,
 				100000000000000000000109 /* ExportView.swift in Sources */,
 				100000000000000000000106 /* GalleryView.swift in Sources */,
+				10000000000000000000010F /* ../../core/src/import.cpp in Sources */,
+				10000000000000000000010D /* LutShopCppBridge.mm in Sources */,
 				100000000000000000000102 /* LutShopCoreBridge.swift in Sources */,
 				100000000000000000000104 /* LutShopApp.swift in Sources */,
 				100000000000000000000108 /* LutsView.swift in Sources */,
@@ -198,18 +236,19 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_CXX_LIBRARY = "libc++";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = VF98GQ7823;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "lut-shop";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait";
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../../core/include",
+				);
+				INFOPLIST_FILE = LutShop/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -221,6 +260,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "LutShop/LutShop-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -230,18 +270,19 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_CXX_LIBRARY = "libc++";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "lut-shop";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait";
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../../core/include",
+				);
+				INFOPLIST_FILE = LutShop/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -253,6 +294,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "LutShop/LutShop-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

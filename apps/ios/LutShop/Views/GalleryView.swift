@@ -1,8 +1,14 @@
+import PhotosUI
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct GalleryView: View {
     @EnvironmentObject private var state: LutShopAppState
     @State private var showSessionManager = false
+    @State private var showPhotoPicker = false
+    @State private var showFileImporter = false
+    @State private var showDeleteSelectionConfirmation = false
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 3)
 
     var body: some View {
@@ -10,7 +16,9 @@ struct GalleryView: View {
             VStack(alignment: .leading, spacing: 14) {
                 header
                 controls
+                selectionToolbar
                 importStatusBanner
+                cppSmokeBanner
                 sessionBar
                 filterTabs
                 photoGrid
@@ -26,26 +34,70 @@ struct GalleryView: View {
         .sheet(isPresented: $showSessionManager) {
             sessionManagerSheet
         }
+        .photosPicker(
+            isPresented: $showPhotoPicker,
+            selection: $selectedPhotoItems,
+            maxSelectionCount: 80,
+            matching: .images
+        )
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: [.image],
+            allowsMultipleSelection: true
+        ) { result in
+            Task {
+                await importSelectedFileURLs(result)
+            }
+        }
+        .onChange(of: selectedPhotoItems) { _, items in
+            guard !items.isEmpty else { return }
+            Task {
+                await importSelectedPhotoItems(items)
+                selectedPhotoItems = []
+            }
+        }
+        .fullScreenCover(isPresented: $state.showCameraConnection) {
+            CameraImportView()
+                .environmentObject(state)
+        }
+        .confirmationDialog(String(localized: "Delete Selected Photos?"), isPresented: $showDeleteSelectionConfirmation, titleVisibility: .visible) {
+            Button(String(localized: "Delete"), role: .destructive) {
+                state.deleteSelectedPhotos()
+            }
+            Button(String(localized: "Cancel"), role: .cancel) {}
+        } message: {
+            Text(String(format: String(localized: "Delete %d selected photo(s). This cannot be undone."), state.selectedPhotos.count))
+        }
     }
 
     private var header: some View {
         HStack(alignment: .center) {
-            Text("lut-shop")
+                Text("lut-shop")
                 .font(.system(size: 38, weight: .bold))
                 .tracking(-0.2)
 
             Spacer()
 
             HStack(spacing: 10) {
-                HStack(spacing: 8) {
-                    Circle().fill(Color.green).frame(width: 8, height: 8)
-                    Text("R5 · Connected")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.7))
+                Button {
+                    state.openCameraConnection()
+                } label: {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(state.cameraSession?.status == .receiving ? Color.accentGreen : .green)
+                            .frame(width: 8, height: 8)
+                        Text(state.cameraConnectionTitle)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.7))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.72)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(.white.opacity(0.08), in: Capsule())
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(.white.opacity(0.08), in: Capsule())
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(String(localized: "Open camera connection")))
 
                 importMenu
             }
@@ -55,25 +107,19 @@ struct GalleryView: View {
     private var importMenu: some View {
         Menu {
             Button {
-                Task {
-                    await state.importMockPhotosFromLibrary()
-                }
+                showPhotoPicker = true
             } label: {
                 Label(String(localized: "Import from Photos"), systemImage: "photo.on.rectangle")
             }
 
             Button {
-                Task {
-                    await state.importMockPhotosFromFiles()
-                }
+                showFileImporter = true
             } label: {
                 Label(String(localized: "Import from Files"), systemImage: "folder")
             }
 
             Button {
-                Task {
-                    await state.importMockPhotosToCurrentSession()
-                }
+                showPhotoPicker = true
             } label: {
                 Label(String(localized: "Import to Current Session"), systemImage: "tray.and.arrow.down")
             }
@@ -87,7 +133,45 @@ struct GalleryView: View {
         }
         .buttonStyle(.plain)
         .disabled(state.isImportingPhotos)
-        .accessibilityLabel(Text("Import photos"))
+        .accessibilityLabel(Text(String(localized: "Import photos")))
+    }
+
+    private func importSelectedPhotoItems(_ items: [PhotosPickerItem]) async {
+        var payloads: [PhotoLibraryImportPayload] = []
+        for (index, item) in items.enumerated() {
+            guard let data = try? await item.loadTransferable(type: Data.self) else {
+                continue
+            }
+
+            let fileExtension = item.supportedContentTypes.first?.preferredFilenameExtension ?? "jpg"
+            payloads.append(PhotoLibraryImportPayload(
+                data: data,
+                suggestedFileName: String(format: "LIB_%04d.%@", index + 1, fileExtension.uppercased())
+            ))
+        }
+
+        await state.importPhotoLibraryItems(payloads)
+    }
+
+    private func importSelectedFileURLs(_ result: Result<[URL], Error>) async {
+        guard case let .success(urls) = result else { return }
+
+        var payloads: [PhotoLibraryImportPayload] = []
+        for url in urls {
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer {
+                if didAccess {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            guard let data = try? Data(contentsOf: url) else {
+                continue
+            }
+            payloads.append(PhotoLibraryImportPayload(data: data, suggestedFileName: url.lastPathComponent))
+        }
+
+        await state.importPhotoLibraryItems(payloads)
     }
 
     private var controls: some View {
@@ -95,7 +179,7 @@ struct GalleryView: View {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.white.opacity(0.62))
-                TextField("Search", text: $state.searchText)
+                TextField(String(localized: "Search"), text: $state.searchText)
                     .textInputAutocapitalization(.never)
             }
             .font(.system(size: 17))
@@ -150,13 +234,34 @@ struct GalleryView: View {
                             .frame(width: 30, height: 30)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(Text("Dismiss import message"))
+                    .accessibilityLabel(Text(String(localized: "Dismiss import message")))
                 }
             }
             .padding(12)
             .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.06)))
         }
+    }
+
+    private var cppSmokeBanner: some View {
+        HStack(spacing: 9) {
+            Image(systemName: "cpu")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(Color.accentGreen)
+                .frame(width: 28, height: 28)
+                .background(Color.accentGreen.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
+            Text(state.cppSmokeSummary)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.66))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.05)))
+        .accessibilityLabel(Text(String(localized: "C++ core smoke test")))
     }
 
     private var filterMenu: some View {
@@ -189,7 +294,7 @@ struct GalleryView: View {
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.08)))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Text("Filter photos"))
+        .accessibilityLabel(Text(String(localized: "Filter photos")))
     }
 
     private var sortMenu: some View {
@@ -210,17 +315,14 @@ struct GalleryView: View {
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.08)))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Text("Sort photos"))
+        .accessibilityLabel(Text(String(localized: "Sort photos")))
     }
 
     private var selectionModeButton: some View {
         Button {
             state.isSelectionMode.toggle()
-            if !state.isSelectionMode {
-                state.clearSelection()
-            }
         } label: {
-            Label(state.isSelectionMode ? String(localized: "Done") : String(localized: "Select"), systemImage: state.isSelectionMode ? "checkmark.circle.fill" : "checkmark.circle")
+            Label(selectionButtonTitle, systemImage: state.isSelectionMode ? "checkmark.circle.fill" : "checkmark.circle")
                 .font(.system(size: 14, weight: .bold))
                 .labelStyle(.titleAndIcon)
                 .foregroundStyle(state.isSelectionMode ? Color.accentGreen : .white)
@@ -231,6 +333,63 @@ struct GalleryView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text(state.isSelectionMode ? "Done selecting" : "Select photos"))
+    }
+
+    private var selectionButtonTitle: String {
+        if state.isSelectionMode {
+            return String(localized: "Done")
+        }
+        if !state.selectedPhotos.isEmpty {
+            return String(format: String(localized: "Select (%d)"), state.selectedPhotos.count)
+        }
+        return String(localized: "Select")
+    }
+
+    @ViewBuilder
+    private var selectionToolbar: some View {
+        if state.isSelectionMode {
+            HStack(spacing: 10) {
+                Label(
+                    String(format: String(localized: "%d selected"), state.selectedPhotos.count),
+                    systemImage: "checkmark.circle.fill"
+                )
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(Color.accentGreen)
+
+                Spacer()
+
+                Button {
+                    state.selectAllFilteredPhotos()
+                } label: {
+                    Label(String(localized: "Select All"), systemImage: "checkmark.circle")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .buttonStyle(.bordered)
+                .disabled(state.filteredPhotos.isEmpty)
+
+                Button {
+                    state.clearSelection()
+                } label: {
+                    Label(String(localized: "Clear"), systemImage: "xmark.circle")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .buttonStyle(.bordered)
+                .disabled(state.selectedPhotos.isEmpty)
+
+                Button(role: .destructive) {
+                    showDeleteSelectionConfirmation = true
+                } label: {
+                    Label(String(localized: "Delete"), systemImage: "trash")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .disabled(state.selectedPhotos.isEmpty)
+            }
+            .padding(12)
+            .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.06)))
+        }
     }
 
     private var sessionBar: some View {
@@ -256,7 +415,7 @@ struct GalleryView: View {
                     .foregroundStyle(.white.opacity(0.78))
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Shoot Session")
+                    Text(String(localized: "Shoot Session"))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.white.opacity(0.48))
                     Text(state.selectedSessionName ?? String(localized: "All Sessions"))
@@ -265,7 +424,7 @@ struct GalleryView: View {
 
                 Spacer()
 
-                Text("\(state.visiblePhotoCount) photos")
+                Text(String(format: String(localized: "%d photos"), state.visiblePhotoCount))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.66))
                 Text(String(localized: "Manage"))
@@ -279,7 +438,7 @@ struct GalleryView: View {
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.06)))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Text("Manage shoot sessions"))
+        .accessibilityLabel(Text(String(localized: "Manage shoot sessions")))
     }
 
     private var sessionManagerSheet: some View {
@@ -329,9 +488,38 @@ struct GalleryView: View {
     }
 
     private var photoGrid: some View {
-        LazyVGrid(columns: columns, spacing: 6) {
-            ForEach(state.filteredPhotos) { photo in
-                PhotoTile(photo: photo)
+        Group {
+            if state.filteredPhotos.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 34, weight: .semibold))
+                        .foregroundStyle(Color.accentGreen)
+                    Text(String(localized: "No photos yet"))
+                        .font(.system(size: 18, weight: .bold))
+                    Text(String(localized: "Import from Photos to start a local shoot session."))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.58))
+                        .multilineTextAlignment(.center)
+                    Button {
+                        showPhotoPicker = true
+                    } label: {
+                        Label(String(localized: "Import from Photos"), systemImage: "photo.badge.plus")
+                            .font(.system(size: 14, weight: .bold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.accentGreen)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 54)
+                .padding(.horizontal, 18)
+                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.05)))
+            } else {
+                LazyVGrid(columns: columns, spacing: 6) {
+                    ForEach(state.filteredPhotos) { photo in
+                        PhotoTile(photo: photo)
+                    }
+                }
             }
         }
     }
@@ -346,13 +534,19 @@ struct PhotoTile: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(.clear)
                 .overlay {
-                    PhotoAssetView(imageName: photo.imageName, fallbackColors: photo.palette)
+                    PhotoAssetView(
+                        imageName: photo.imageName,
+                        imagePath: photo.imagePath,
+                        fallbackColors: photo.palette,
+                        lutFileName: state.appliedLutFileName(for: photo),
+                        lutIntensity: photo.lutIntensity
+                    )
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(.black.opacity(0.18))
                 .aspectRatio(0.82, contentMode: .fit)
                 .overlay(alignment: .topLeading) {
-                    Text(photo.status.titleKey)
+                    Text(photo.formatBadgeText)
                         .font(.system(size: 11, weight: .bold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 4)
@@ -381,7 +575,7 @@ struct PhotoTile: View {
                 }
                 .overlay {
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(photo.isSelected ? Color.accentGreen : .white.opacity(0.05), lineWidth: photo.isSelected ? 2 : 1)
+                        .stroke(selectionBorderColor, lineWidth: photo.isSelected ? 2 : 1)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -422,6 +616,11 @@ struct PhotoTile: View {
             }
             Button(photo.isFavorite ? String(localized: "Unfavorite") : String(localized: "Favorite")) { state.toggleFavorite(photo.id) }
         }
+    }
+
+    private var selectionBorderColor: Color {
+        guard photo.isSelected else { return .white.opacity(0.05) }
+        return state.isSelectionMode ? Color.accentGreen : .white
     }
 }
 
@@ -566,7 +765,7 @@ private struct SessionManagerSheet: View {
                 .buttonStyle(.plain)
                 .disabled(newSessionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .opacity(newSessionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
-                .accessibilityLabel(Text("Create Session"))
+                .accessibilityLabel(Text(String(localized: "Create Session")))
             }
         }
     }
@@ -675,7 +874,7 @@ private struct SessionRow: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(renameAction == nil && deleteAction == nil)
-                .accessibilityLabel(Text("Session actions"))
+                .accessibilityLabel(Text(String(localized: "Session actions")))
             }
             .padding(12)
             .background(.white.opacity(isSelected ? 0.11 : 0.06), in: RoundedRectangle(cornerRadius: 16))

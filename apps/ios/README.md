@@ -25,7 +25,14 @@ The SwiftUI shell now lives in `apps/ios/LutShop`.
 
 Open `apps/ios/LutShop.xcodeproj` in Xcode and run the `LutShop` scheme on an iPhone simulator.
 
-The project currently builds the SwiftUI mock app only. The future Objective-C++ bridge target should link `../../core` once the UI flow is stable.
+The project currently builds the SwiftUI mock app only. The next bridge step is to add an Objective-C++ wrapper that links `../../core` and calls the C ABI in `core/include/lutshop/bridge_c.h`.
+
+Recommended first Objective-C++ calls:
+
+- `lutshop_core_version()` for a smoke test.
+- `lutshop_import_photo_count(...)` to validate Swift -> Objective-C++ -> C++ import plumbing.
+
+After the smoke test passes, expand the wrapper around `lutshop::LutShopCore` from `core/include/lutshop/core.hpp` for session, import, sorting, LUT catalog, and recommendation calls.
 
 ## Localization
 

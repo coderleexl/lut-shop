@@ -10,13 +10,13 @@ struct ExportView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("\(state.selectedPhotos.count) Selected")
+                    Text(String(format: String(localized: "%d Selected"), state.selectedPhotos.count))
                         .font(.system(size: 30, weight: .bold))
-                    Text("Batch process and export")
+                    Text(String(localized: "Export saved edits"))
                         .foregroundStyle(.white.opacity(0.56))
                 }
                 Spacer()
-                Button("Cancel") {
+                Button(String(localized: "Cancel")) {
                     state.selectedTab = .gallery
                 }
                 .buttonStyle(.bordered)
@@ -26,7 +26,6 @@ struct ExportView: View {
                 emptyState
             } else {
                 selectedList
-                activeLutPanel
                 settingsPanel
                 progressPanel
 
@@ -80,7 +79,13 @@ struct ExportView: View {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(.clear)
                         .overlay {
-                            PhotoAssetView(imageName: photo.imageName, fallbackColors: photo.palette)
+                            PhotoAssetView(
+                                imageName: photo.imageName,
+                                imagePath: photo.imagePath,
+                                fallbackColors: photo.palette,
+                                lutFileName: state.appliedLutFileName(for: photo),
+                                lutIntensity: photo.lutIntensity
+                            )
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                         .frame(width: 88, height: 112)
@@ -95,32 +100,6 @@ struct ExportView: View {
         }
     }
 
-    private var activeLutPanel: some View {
-        HStack(spacing: 12) {
-            if let lut = state.activeLut {
-                LutStrip(colors: lut.previewColors)
-                    .frame(width: 84, height: 34)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(lut.name)
-                        .font(.system(size: 15, weight: .semibold))
-                    Text(String(localized: "Applied at \(Int(state.lutIntensity * 100))% intensity"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.56))
-                }
-            } else {
-                Text(String(localized: "No LUT selected"))
-                    .font(.system(size: 15, weight: .semibold))
-            }
-            Spacer()
-            Button(String(localized: "Choose")) {
-                state.selectedTab = .luts
-            }
-            .buttonStyle(.bordered)
-        }
-        .padding(14)
-        .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
-    }
-
     private var settingsPanel: some View {
         VStack(spacing: 12) {
             Picker(String(localized: "Format"), selection: $state.exportSettings.format) {
@@ -128,14 +107,14 @@ struct ExportView: View {
                 Text("PNG").tag("PNG")
             }
             Picker(String(localized: "Size"), selection: $state.exportSettings.size) {
-                Text("Original").tag("Original")
+                Text(String(localized: "Original")).tag("Original")
                 Text("2048px").tag("2048px")
                 Text("1080px").tag("1080px")
             }
             Picker(String(localized: "Quality"), selection: $state.exportSettings.quality) {
-                Text("High").tag("High")
-                Text("Medium").tag("Medium")
-                Text("Low").tag("Low")
+                Text(String(localized: "High")).tag("High")
+                Text(String(localized: "Medium")).tag("Medium")
+                Text(String(localized: "Low")).tag("Low")
             }
             Toggle("Preserve EXIF", isOn: $state.exportSettings.preserveExif)
         }
@@ -186,9 +165,9 @@ struct ExportView: View {
                 try? await Task.sleep(for: .milliseconds(120))
                 progress = Double(step) / 10
             }
-            state.markSelectionExported()
+            let exportedCount = await state.exportSelectedPhotosToLocalFiles()
             isExporting = false
-            didComplete = true
+            didComplete = exportedCount > 0
         }
     }
 }
