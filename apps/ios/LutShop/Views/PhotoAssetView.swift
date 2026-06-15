@@ -6,21 +6,33 @@ struct PhotoAssetView: View {
     var imagePath: String?
     var fallbackColors: [Color]
     var lutFileName: String?
+    var lutPath: String?
     var lutIntensity: Double = 0
+    var watermarkSettings: WatermarkSettings?
+    var exifSummary: PhotoExifSummary?
+    var fileName: String = ""
+    var sessionName: String = ""
 
     var body: some View {
         if let image = UIImage.lutShopPhoto(
             named: imageName,
             path: imagePath,
             applyingBundledLutNamed: lutFileName,
-            intensity: lutIntensity
+            applyingLutAtPath: lutPath,
+            intensity: lutIntensity,
+            watermarkSettings: watermarkSettings,
+            exifSummary: exifSummary,
+            fileName: fileName,
+            sessionName: sessionName
         ) {
             Image(uiImage: image)
                 .resizable()
-                .scaledToFill()
-                .scaleEffect(1.45)
+                .aspectRatio(contentMode: watermarkSettings?.isEnabled == true ? .fit : .fill)
+                .scaleEffect(watermarkSettings?.isEnabled == true ? 1 : 1.45)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         } else {
             LinearGradient(colors: fallbackColors, startPoint: .topLeading, endPoint: .bottomTrailing)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
@@ -30,35 +42,106 @@ private extension UIImage {
         named name: String,
         path: String?,
         applyingBundledLutNamed lutFileName: String? = nil,
-        intensity: Double = 0
+        applyingLutAtPath lutPath: String? = nil,
+        intensity: Double = 0,
+        watermarkSettings: WatermarkSettings? = nil,
+        exifSummary: PhotoExifSummary? = nil,
+        fileName: String = "",
+        sessionName: String = ""
     ) -> UIImage? {
-        if let lutFileName, intensity > 0 {
+        let baseImage: UIImage?
+        if let lutPath, intensity > 0 {
             if let path,
+               let image = CoreImageLutRenderer.shared.applyUserLut(
+                atPath: lutPath,
+                toImageAtPath: path,
+                intensity: intensity
+               ) {
+                baseImage = image
+            } else if let image = CoreImageLutRenderer.shared.applyUserLut(
+                atPath: lutPath,
+                toImageNamed: name,
+                intensity: intensity
+            ) {
+                baseImage = image
+            } else if let path,
+               let image = LutShopCppBridge.applyUserLut(
+                atPath: lutPath,
+                toImageAtPath: path,
+                intensity: intensity
+               ) {
+                baseImage = image
+            } else {
+                baseImage = LutShopCppBridge.applyUserLut(
+                    atPath: lutPath,
+                    toImageNamed: name,
+                    intensity: intensity
+                )
+            }
+        } else if let lutFileName, intensity > 0 {
+            if let path,
+               let image = CoreImageLutRenderer.shared.applyBundledLut(
+                named: lutFileName,
+                toImageAtPath: path,
+                intensity: intensity
+               ) {
+                baseImage = image
+            } else if let image = CoreImageLutRenderer.shared.applyBundledLut(
+                named: lutFileName,
+                toImageNamed: name,
+                intensity: intensity
+            ) {
+                baseImage = image
+            } else if let path,
                let image = LutShopCppBridge.previewImage(
                 byApplyingBundledLutNamed: lutFileName,
                 toImageAtPath: path,
                 intensity: intensity
                ) {
-                return image
+                baseImage = image
+            } else {
+                baseImage = LutShopCppBridge.previewImage(
+                    byApplyingBundledLutNamed: lutFileName,
+                    toImageNamed: name,
+                    intensity: intensity
+                )
             }
-            return LutShopCppBridge.previewImage(
-                byApplyingBundledLutNamed: lutFileName,
-                toImageNamed: name,
-                intensity: intensity
-            )
-        }
-
-        if let path, let image = UIImage(contentsOfFile: path) {
-            return image
-        }
-
-        guard let url = Bundle.main.url(
+        } else if let path, let image = UIImage(contentsOfFile: path) {
+            baseImage = image
+        } else if let url = Bundle.main.url(
             forResource: name,
             withExtension: "jpg",
             subdirectory: "PrototypePhotos"
-        ) else {
-            return nil
+        ) {
+            baseImage = UIImage(contentsOfFile: url.path)
+        } else {
+            baseImage = nil
         }
-        return UIImage(contentsOfFile: url.path)
+
+        guard let baseImage else { return nil }
+        guard let watermarkSettings, watermarkSettings.isEnabled else {
+            return baseImage
+        }
+
+        return WatermarkRenderer.render(
+            image: baseImage,
+            photo: Photo(
+                id: "preview",
+                fileName: fileName.isEmpty ? name : fileName,
+                imageName: name,
+                imagePath: path,
+                sessionName: sessionName,
+                status: .edited,
+                isFavorite: false,
+                isSelected: false,
+                rating: 0,
+                appliedLutId: nil,
+                lutIntensity: intensity,
+                recommendedLutIds: [],
+                palette: [],
+                exifSummary: exifSummary
+            ),
+            settings: watermarkSettings
+        )
     }
 }

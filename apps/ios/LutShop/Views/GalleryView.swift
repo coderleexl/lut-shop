@@ -15,6 +15,7 @@ struct GalleryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 header
+                cameraReceiveBanner
                 controls
                 selectionToolbar
                 importStatusBanner
@@ -134,6 +135,45 @@ struct GalleryView: View {
         .buttonStyle(.plain)
         .disabled(state.isImportingPhotos)
         .accessibilityLabel(Text(String(localized: "Import photos")))
+    }
+
+    @ViewBuilder
+    private var cameraReceiveBanner: some View {
+        if let session = state.cameraSession, session.status == .waiting || session.status == .receiving || session.receivedCount > 0 {
+            Button {
+                state.openCameraConnection()
+            } label: {
+                HStack(spacing: 10) {
+                    Circle()
+                        .fill(session.status == .stopped ? .white.opacity(0.45) : Color.accentGreen)
+                        .frame(width: 9, height: 9)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(session.status.title)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white)
+                        Text("\(state.ftpReceiverSummary) · \(String(localized: "received")) \(session.receivedCount)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.58))
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    Text(session.currentFileName ?? session.lastFileName ?? "")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.72))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: 130, alignment: .trailing)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.06)))
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private func importSelectedPhotoItems(_ items: [PhotosPickerItem]) async {
@@ -539,6 +579,7 @@ struct PhotoTile: View {
                         imagePath: photo.imagePath,
                         fallbackColors: photo.palette,
                         lutFileName: state.appliedLutFileName(for: photo),
+                        lutPath: state.appliedLutPath(for: photo),
                         lutIntensity: photo.lutIntensity
                     )
                 }

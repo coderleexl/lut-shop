@@ -2,6 +2,14 @@ import SwiftUI
 
 struct PreviewView: View {
     @EnvironmentObject private var state: LutShopAppState
+    @State private var draftLutIntensity = 0.72
+    @State private var isEditingLutIntensity = false
+    @State private var isApplyingPreview = false
+    @State private var pendingIntensityWorkItem: DispatchWorkItem?
+
+    private var visibleLutIntensity: Double {
+        isEditingLutIntensity ? draftLutIntensity : state.lutIntensity
+    }
 
     var body: some View {
         VStack(spacing: 14) {
@@ -14,6 +22,16 @@ struct PreviewView: View {
         .padding(.top, 18)
         .padding(.bottom, 86)
         .background(Color.black.ignoresSafeArea())
+        .onAppear {
+            syncDraftIntensity()
+        }
+        .onChange(of: state.selectedPhotoId) { _, _ in
+            syncDraftIntensity()
+        }
+        .onChange(of: state.lutIntensity) { _, _ in
+            guard !isEditingLutIntensity else { return }
+            syncDraftIntensity()
+        }
     }
 
     private var topBar: some View {
@@ -24,7 +42,7 @@ struct PreviewView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.currentPhoto?.fileName ?? String(localized: "Preview"))
                     .font(.system(size: 17, weight: .semibold))
-                Text(state.previewCompareEnabled ? String(localized: "Before / After") : String(localized: "After · \(Int(state.lutIntensity * 100))%"))
+                Text(state.previewCompareEnabled ? String(localized: "Before / After") : String(localized: "After · \(Int(visibleLutIntensity * 100))%"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white.opacity(0.55))
             }
@@ -44,7 +62,11 @@ struct PreviewView: View {
                 comparePreviewContent
             }
             .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(.black.opacity(0.04))
+            .overlay {
+                Rectangle()
+                    .fill(.black.opacity(0.04))
+                    .allowsHitTesting(false)
+            }
             .overlay(alignment: .topLeading) {
                 Text(state.previewCompareEnabled ? String(localized: "Before") : state.activeLut?.name ?? String(localized: "No LUT"))
                     .font(.system(size: 13, weight: .bold))
@@ -52,6 +74,7 @@ struct PreviewView: View {
                     .padding(.vertical, 6)
                     .background(.black.opacity(0.45), in: Capsule())
                     .padding(12)
+                    .allowsHitTesting(false)
             }
             .overlay(alignment: .topTrailing) {
                 if state.previewCompareEnabled {
@@ -61,6 +84,7 @@ struct PreviewView: View {
                         .padding(.vertical, 6)
                         .background(.black.opacity(0.45), in: Capsule())
                         .padding(12)
+                        .allowsHitTesting(false)
                 }
             }
             .overlay(alignment: .bottomTrailing) {
@@ -80,8 +104,31 @@ struct PreviewView: View {
                 }
                 .padding(12)
             }
+            .overlay {
+                if isApplyingPreview {
+                    applyingOverlay
+                }
+            }
             .frame(maxWidth: .infinity)
             .aspectRatio(0.78, contentMode: .fit)
+    }
+
+    private var applyingOverlay: some View {
+        ZStack {
+            Rectangle()
+                .fill(.black.opacity(0.32))
+            VStack(spacing: 10) {
+                ProgressView()
+                    .tint(.white)
+                Text(String(localized: "Applying LUT..."))
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.black.opacity(0.58), in: Capsule())
+        }
+        .transition(.opacity)
     }
 
     private var comparePreviewContent: some View {
@@ -119,7 +166,12 @@ struct PreviewView: View {
                     imagePath: photo.imagePath,
                     fallbackColors: isBefore ? [.gray, .black] : photo.palette,
                     lutFileName: isBefore ? nil : state.activeLut?.sourceFileName,
-                    lutIntensity: isBefore ? 0 : state.lutIntensity
+                    lutPath: isBefore ? nil : state.activeLut?.userPath,
+                    lutIntensity: isBefore ? 0 : state.lutIntensity,
+                    watermarkSettings: nil,
+                    exifSummary: photo.exifSummary,
+                    fileName: photo.fileName,
+                    sessionName: photo.sessionName
                 )
             } else {
                 LinearGradient(colors: [.gray, .black], startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -131,6 +183,7 @@ struct PreviewView: View {
         Rectangle()
             .fill(.white.opacity(0.88))
             .frame(width: 2)
+            .frame(maxHeight: .infinity)
             .overlay {
                 Circle()
                     .fill(.black.opacity(0.55))
@@ -146,9 +199,11 @@ struct PreviewView: View {
     }
 
     private var lutRecommendations: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        let renderableLuts = state.luts.filter(\.hasRenderableSource)
+        let recommended = state.recommendedLuts.filter(\.hasRenderableSource)
+        return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ForEach(state.recommendedLuts + state.luts.filter { !state.recommendedLuts.contains($0) }) { lut in
+                ForEach(recommended + renderableLuts.filter { !recommended.contains($0) }) { lut in
                     Button {
                         state.activeLutId = lut.id
                         state.validateLutLoad(lut.id)
@@ -182,11 +237,18 @@ struct PreviewView: View {
                 Text(String(localized: "LUT Intensity"))
                     .font(.system(size: 14, weight: .semibold))
                 Spacer()
-                Text("\(Int(state.lutIntensity * 100))%")
+                Text("\(Int(visibleLutIntensity * 100))%")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Color.accentGreen)
             }
-            Slider(value: $state.lutIntensity, in: 0...1)
+            Slider(
+                value: Binding(
+                    get: { draftLutIntensity },
+                    set: { draftLutIntensity = min(max($0, 0), 1) }
+                ),
+                in: 0...1,
+                onEditingChanged: handleLutIntensityEditingChanged
+            )
             HStack {
                 Button(state.previewCompareEnabled ? String(localized: "Show After") : String(localized: "Compare")) {
                     state.previewCompareEnabled.toggle()
@@ -214,5 +276,41 @@ struct PreviewView: View {
         }
         .padding(14)
         .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func handleLutIntensityEditingChanged(_ isEditing: Bool) {
+        isEditingLutIntensity = isEditing
+        if isEditing {
+            pendingIntensityWorkItem?.cancel()
+            return
+        }
+
+        let clampedIntensity = min(max(draftLutIntensity, 0), 1)
+        guard abs(clampedIntensity - state.lutIntensity) > 0.001 else {
+            isApplyingPreview = false
+            return
+        }
+
+        withAnimation(.easeInOut(duration: 0.16)) {
+            isApplyingPreview = true
+        }
+
+        let workItem = DispatchWorkItem {
+            state.lutIntensity = clampedIntensity
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                guard !isEditingLutIntensity else { return }
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    isApplyingPreview = false
+                }
+            }
+        }
+        pendingIntensityWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: workItem)
+    }
+
+    private func syncDraftIntensity() {
+        draftLutIntensity = min(max(state.lutIntensity, 0), 1)
+        isApplyingPreview = false
+        pendingIntensityWorkItem?.cancel()
     }
 }

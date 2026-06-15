@@ -14,6 +14,7 @@ enum MainTab: String, CaseIterable, Identifiable {
     case gallery = "Gallery"
     case preview = "Preview"
     case luts = "LUTs"
+    case watermark = "Watermark"
     case export = "Export"
 
     var id: String { rawValue }
@@ -25,6 +26,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .gallery: return "photo.on.rectangle.angled"
         case .preview: return "square.dashed"
         case .luts: return "square.stack.3d.up"
+        case .watermark: return "drop.fill"
         case .export: return "square.and.arrow.up"
         }
     }
@@ -106,8 +108,8 @@ struct CameraImportSettings: Equatable {
 
 struct FtpReceiverConfiguration: Equatable {
     var port: Int = 2121
-    var username: String = "lutshop"
-    var password: String = "lutshop"
+    var username: String = "lee"
+    var password: String = "123456"
 }
 
 struct CameraSession: Identifiable, Equatable {
@@ -118,6 +120,7 @@ struct CameraSession: Identifiable, Equatable {
     var startedAt: Date
     var status: CameraConnectionStatus
     var receivedCount: Int
+    var currentFileName: String?
     var lastFileName: String?
 }
 
@@ -135,6 +138,7 @@ struct Photo: Identifiable, Equatable {
     var lutIntensity: Double
     var recommendedLutIds: [String]
     var palette: [Color]
+    var exifSummary: PhotoExifSummary? = nil
 
     var formatBadgeText: String {
         let rawExtensions = Set(["raw", "dng", "arw", "cr2", "cr3", "nef", "nrw", "orf", "pef", "raf", "rw2", "srw"])
@@ -157,6 +161,73 @@ struct Photo: Identifiable, Equatable {
     }
 }
 
+struct PhotoExifSummary: Codable, Equatable {
+    var cameraMake: String?
+    var cameraModel: String?
+    var lensModel: String?
+    var focalLength: String?
+    var aperture: String?
+    var shutterSpeed: String?
+    var iso: String?
+    var capturedAt: String?
+
+    var cameraDisplayName: String? {
+        [cameraMake, cameraModel]
+            .compactMap { value in
+                let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed?.isEmpty == false ? trimmed : nil
+            }
+            .removingDuplicates()
+            .joined(separator: " ")
+            .nilIfEmpty
+    }
+
+    var exposureDisplayText: String? {
+        [focalLength, aperture, shutterSpeed, iso]
+            .compactMap { value in
+                let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed?.isEmpty == false ? trimmed : nil
+            }
+            .joined(separator: "  ")
+            .nilIfEmpty
+    }
+}
+
+enum WatermarkStyle: String, CaseIterable, Identifiable, Codable {
+    case none
+    case filmBorder
+    case hasselbladMinimal
+    case leicaMinimal
+    case appleMinimal
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .none:
+            return String(localized: "No Watermark")
+        case .filmBorder:
+            return String(localized: "Film Border")
+        case .hasselbladMinimal:
+            return String(localized: "Hasselblad Minimal")
+        case .leicaMinimal:
+            return String(localized: "Leica Minimal")
+        case .appleMinimal:
+            return String(localized: "Apple Minimal")
+        }
+    }
+}
+
+struct WatermarkSettings: Codable, Equatable {
+    var style: WatermarkStyle = .none
+    var cornerRadius: Double = 0.22
+    var showExif: Bool = true
+
+    var isEnabled: Bool {
+        style != .none
+    }
+}
+
 struct LutPreset: Identifiable, Equatable {
     let id: String
     var name: String
@@ -173,6 +244,10 @@ struct LutPreset: Identifiable, Equatable {
     var provider: String? = nil
     var isBundled: Bool = false
     var userPath: String? = nil
+
+    var hasRenderableSource: Bool {
+        sourceFileName?.isEmpty == false || userPath?.isEmpty == false
+    }
 }
 
 struct ExportSettings: Equatable {
@@ -180,4 +255,20 @@ struct ExportSettings: Equatable {
     var size: String = "2048px"
     var quality: String = "High"
     var preserveExif: Bool = true
+}
+
+private extension Array where Element == String {
+    func removingDuplicates() -> [String] {
+        var result: [String] = []
+        for item in self where !result.contains(item) {
+            result.append(item)
+        }
+        return result
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
+    }
 }

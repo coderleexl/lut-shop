@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -36,6 +37,15 @@ import com.lutshop.MainTab
 import com.lutshop.Photo
 import com.lutshop.R
 import androidx.compose.ui.res.stringResource
+
+fun safeLinearGradient(colors: List<Color>): Brush {
+    val safeColors = when {
+        colors.size >= 2 -> colors
+        colors.size == 1 -> listOf(colors.first(), colors.first().copy(alpha = 0.72f))
+        else -> listOf(Color(0xFF777777), Color(0xFF111111))
+    }
+    return Brush.linearGradient(safeColors)
+}
 
 @Composable
 fun BottomChrome(state: LutShopAppState) {
@@ -65,7 +75,7 @@ fun SelectionBar(state: LutShopAppState, photo: Photo) {
             modifier = Modifier
                 .size(52.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Brush.linearGradient(photo.palette))
+                .background(safeLinearGradient(photo.palette))
         )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -105,7 +115,10 @@ fun BottomTabs(state: LutShopAppState) {
                 modifier = Modifier
                     .weight(1f)
                     .height(58.dp)
-                    .clickable { state.selectedTab = tab },
+                    .clickable {
+                        state.showCameraImportPanel = false
+                        state.selectedTab = tab
+                    },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -113,6 +126,7 @@ fun BottomTabs(state: LutShopAppState) {
                     MainTab.Gallery -> Icons.Outlined.PhotoLibrary
                     MainTab.Preview -> Icons.Outlined.GridView
                     MainTab.Luts -> Icons.Outlined.AutoAwesome
+                    MainTab.Watermark -> Icons.Outlined.Title
                     MainTab.Export -> Icons.Outlined.FileUpload
                 }
                 Icon(icon, contentDescription = stringResource(tab.labelRes), tint = if (selected) AccentGreen else Color.White.copy(alpha = 0.62f))

@@ -27,6 +27,11 @@
 		100000000000000000000112 /* CameraImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000015 /* CameraImportView.swift */; };
 		100000000000000000000113 /* CameraDiscoveryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000016 /* CameraDiscoveryService.swift */; };
 		100000000000000000000114 /* CameraReceiveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000018 /* CameraReceiveService.swift */; };
+		100000000000000000000115 /* ZipLutArchiveExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000019 /* ZipLutArchiveExtractor.swift */; };
+		100000000000000000000116 /* CoreImageLutRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001A /* CoreImageLutRenderer.swift */; };
+		100000000000000000000117 /* WatermarkRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001B /* WatermarkRenderer.swift */; };
+		100000000000000000000118 /* WatermarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001C /* WatermarkView.swift */; };
+		100000000000000000000119 /* BrandLogos in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001D /* BrandLogos */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +59,11 @@
 		100000000000000000000016 /* CameraDiscoveryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraDiscoveryService.swift; sourceTree = "<group>"; };
 		100000000000000000000017 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		100000000000000000000018 /* CameraReceiveService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraReceiveService.swift; sourceTree = "<group>"; };
+		100000000000000000000019 /* ZipLutArchiveExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipLutArchiveExtractor.swift; sourceTree = "<group>"; };
+		10000000000000000000001A /* CoreImageLutRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreImageLutRenderer.swift; sourceTree = "<group>"; };
+		10000000000000000000001B /* WatermarkRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatermarkRenderer.swift; sourceTree = "<group>"; };
+		10000000000000000000001C /* WatermarkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatermarkView.swift; sourceTree = "<group>"; };
+		10000000000000000000001D /* BrandLogos */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BrandLogos; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -104,11 +114,14 @@
 				100000000000000000000011 /* ../../core/src/bridge_c.cpp */,
 				100000000000000000000016 /* CameraDiscoveryService.swift */,
 				100000000000000000000018 /* CameraReceiveService.swift */,
+				10000000000000000000001A /* CoreImageLutRenderer.swift */,
 				100000000000000000000013 /* ../../core/src/cube.cpp */,
 				100000000000000000000012 /* ../../core/src/import.cpp */,
 				10000000000000000000000E /* LutShopCppBridge.h */,
 				10000000000000000000000F /* LutShopCppBridge.mm */,
 				100000000000000000000002 /* LutShopCoreBridge.swift */,
+				10000000000000000000001B /* WatermarkRenderer.swift */,
+				100000000000000000000019 /* ZipLutArchiveExtractor.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -123,6 +136,7 @@
 				100000000000000000000008 /* LutsView.swift */,
 				10000000000000000000000C /* PhotoAssetView.swift */,
 				100000000000000000000007 /* PreviewView.swift */,
+				10000000000000000000001C /* WatermarkView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -131,6 +145,7 @@
 			isa = PBXGroup;
 			children = (
 				10000000000000000000000D /* Assets.xcassets */,
+				10000000000000000000001D /* BrandLogos */,
 				10000000000000000000000B /* Localizable.xcstrings */,
 				100000000000000000000014 /* BundledLuts */,
 			);
@@ -197,6 +212,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				100000000000000000000111 /* BundledLuts in Resources */,
+				100000000000000000000119 /* BrandLogos in Resources */,
 				10000000000000000000010C /* Assets.xcassets in Resources */,
 				10000000000000000000010A /* Localizable.xcstrings in Resources */,
 			);
@@ -214,6 +230,7 @@
 				100000000000000000000113 /* CameraDiscoveryService.swift in Sources */,
 				100000000000000000000114 /* CameraReceiveService.swift in Sources */,
 				100000000000000000000112 /* CameraImportView.swift in Sources */,
+				100000000000000000000116 /* CoreImageLutRenderer.swift in Sources */,
 				100000000000000000000110 /* ../../core/src/cube.cpp in Sources */,
 				100000000000000000000109 /* ExportView.swift in Sources */,
 				100000000000000000000106 /* GalleryView.swift in Sources */,
@@ -226,6 +243,9 @@
 				10000000000000000000010B /* PhotoAssetView.swift in Sources */,
 				100000000000000000000107 /* PreviewView.swift in Sources */,
 				100000000000000000000105 /* Components.swift in Sources */,
+				100000000000000000000117 /* WatermarkRenderer.swift in Sources */,
+				100000000000000000000118 /* WatermarkView.swift in Sources */,
+				100000000000000000000115 /* ZipLutArchiveExtractor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -275,7 +295,7 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = VF98GQ7823;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (

@@ -84,6 +84,7 @@ struct ExportView: View {
                                 imagePath: photo.imagePath,
                                 fallbackColors: photo.palette,
                                 lutFileName: state.appliedLutFileName(for: photo),
+                                lutPath: state.appliedLutPath(for: photo),
                                 lutIntensity: photo.lutIntensity
                             )
                         }

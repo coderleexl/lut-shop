@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct LutsView: View {
     @EnvironmentObject private var state: LutShopAppState
@@ -15,7 +16,8 @@ struct LutsView: View {
 
     private var visibleLuts: [LutPreset] {
         state.luts.filter { lut in
-            (categoryGroupId == nil || (lut.categoryGroupId ?? lut.category.rawValue) == categoryGroupId)
+            lut.hasRenderableSource
+                && (categoryGroupId == nil || (lut.categoryGroupId ?? lut.category.rawValue) == categoryGroupId)
                 && (query.isEmpty
                     || lut.name.localizedCaseInsensitiveContains(query)
                     || lut.tags.contains { $0.localizedCaseInsensitiveContains(query) })
@@ -98,18 +100,28 @@ struct LutsView: View {
             lutDetail(lut)
         }
         .sheet(isPresented: $showAddLut) {
-            AddLutSheet(categories: state.visibleLutCategories) { name, path, categoryGroupId in
-                if state.addUserLut(name: name, path: path, categoryGroupId: categoryGroupId) {
-                    importMessage = String(localized: "Added LUT")
+            AddLutSheet(categories: state.visibleLutCategories) { name, path, categoryGroupId, fileURL in
+                if let message = state.importUserLut(name: name, path: path, categoryGroupId: categoryGroupId, fileURL: fileURL) {
+                    importMessage = message
                 }
                 showAddLut = false
             }
             .presentationDetents([.medium])
         }
         .sheet(isPresented: $showCategoryManager) {
-            LutCategoryManagerSheet(categories: state.visibleLutCategories) { name in
-                _ = state.createLutCategory(named: name)
-            }
+            LutCategoryManagerSheet(
+                categories: state.visibleLutCategories,
+                lutCount: { state.lutCount(inCategoryGroup: $0) },
+                create: { name in
+                    _ = state.createLutCategory(named: name)
+                },
+                delete: { groupId in
+                    if categoryGroupId == groupId {
+                        categoryGroupId = nil
+                    }
+                    _ = state.deleteLutCategory(groupId)
+                }
+            )
             .presentationDetents([.medium])
         }
         .confirmationDialog(String(localized: "Delete LUT?"), isPresented: $showDeleteConfirmation) {
@@ -247,12 +259,14 @@ private struct AddLutSheet: View {
     @State private var name = ""
     @State private var path = ""
     @State private var categoryGroupId = ""
+    @State private var selectedFileURL: URL?
+    @State private var showFileImporter = false
     let categories: [LutCategoryGroup]
-    let save: (String, String, String) -> Void
+    let save: (String, String, String, URL?) -> Void
 
     private var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        (!name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedFileURL != nil)
+            && (!path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedFileURL != nil)
             && !categoryGroupId.isEmpty
     }
 
@@ -265,6 +279,18 @@ private struct AddLutSheet: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .lineLimit(2...4)
+
+                    Button {
+                        showFileImporter = true
+                    } label: {
+                        Label(String(localized: "Choose Local File"), systemImage: "doc.badge.plus")
+                    }
+
+                    if let selectedFileURL {
+                        Label(selectedFileURL.lastPathComponent, systemImage: "doc.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section(String(localized: "Category")) {
@@ -286,9 +312,21 @@ private struct AddLutSheet: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(String(localized: "Save")) {
-                        save(name, path, categoryGroupId)
+                        save(name, path, categoryGroupId, selectedFileURL)
                     }
                     .disabled(!canSave)
+                }
+            }
+            .fileImporter(
+                isPresented: $showFileImporter,
+                allowedContentTypes: [.item],
+                allowsMultipleSelection: false
+            ) { result in
+                guard case .success(let urls) = result, let url = urls.first else { return }
+                selectedFileURL = url
+                path = url.path
+                if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    name = url.deletingPathExtension().lastPathComponent
                 }
             }
             .onAppear {
@@ -303,8 +341,12 @@ private struct AddLutSheet: View {
 private struct LutCategoryManagerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var newCategoryName = ""
+    @State private var deletingCategory: LutCategoryGroup?
+    @State private var showDeleteConfirmation = false
     let categories: [LutCategoryGroup]
+    let lutCount: (String) -> Int
     let create: (String) -> Void
+    let delete: (String) -> Void
 
     var body: some View {
         NavigationStack {
@@ -323,11 +365,29 @@ private struct LutCategoryManagerSheet: View {
                 Section(String(localized: "Groups")) {
                     ForEach(categories) { category in
                         HStack {
-                            Text(category.title)
-                            Spacer()
-                            Text(category.isSystem ? String(localized: "System") : String(localized: "Custom"))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(category.title)
+                                Text(String(
+                                    format: String(localized: "%d LUT(s)"),
+                                    lutCount(category.id)
+                                ))
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if category.isSystem {
+                                Text(String(localized: "System"))
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Button(role: .destructive) {
+                                    deletingCategory = category
+                                    showDeleteConfirmation = true
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .buttonStyle(.borderless)
+                            }
                         }
                     }
                 }
@@ -340,6 +400,28 @@ private struct LutCategoryManagerSheet: View {
                     Button(String(localized: "Done")) {
                         dismiss()
                     }
+                }
+            }
+            .confirmationDialog(
+                String(localized: "Delete LUT Group?"),
+                isPresented: $showDeleteConfirmation
+            ) {
+                Button(String(localized: "Delete Group and LUTs"), role: .destructive) {
+                    if let deletingCategory {
+                        delete(deletingCategory.id)
+                    }
+                    deletingCategory = nil
+                }
+                Button(String(localized: "Cancel"), role: .cancel) {
+                    deletingCategory = nil
+                }
+            } message: {
+                if let deletingCategory {
+                    Text(String(
+                        format: String(localized: "This will delete %@ and %d LUT(s)."),
+                        deletingCategory.title,
+                        lutCount(deletingCategory.id)
+                    ))
                 }
             }
         }

@@ -225,6 +225,7 @@ struct CameraImportView: View {
                 Text(String(localized: "Current Session"))
                     .font(.system(size: 15, weight: .bold))
                 settingRow(title: String(localized: "Name"), value: session.name)
+                settingRow(title: String(localized: "Current file"), value: session.currentFileName ?? String(localized: "Waiting for camera"))
                 settingRow(title: String(localized: "Last file"), value: session.lastFileName ?? String(localized: "Waiting for camera"))
             }
             .padding(14)

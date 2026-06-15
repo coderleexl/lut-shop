@@ -1,6 +1,8 @@
 node_modules
 dist
 build
+.gradle/
+apps/android/app/.cxx/
 .DS_Store
 .superpowers/
 .codegraph/

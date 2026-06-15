@@ -26,6 +26,7 @@ private struct PersistedPhoto: Codable {
     var appliedLutId: String?
     var lutIntensity: Double
     var recommendedLutIds: [String]
+    var exifSummary: PhotoExifSummary?
 }
 
 private struct PersistedLutLibrary: Codable {
@@ -60,6 +61,11 @@ final class LutShopAppState: ObservableObject {
     @Published var previewCompareEnabled = true
     @Published var previewComparePosition = 0.5
     @Published var exportSettings = ExportSettings()
+    @Published var watermarkSettings = LutShopAppState.loadWatermarkSettings() {
+        didSet {
+            Self.persistWatermarkSettings(watermarkSettings)
+        }
+    }
     @Published var isImportingPhotos = false
     @Published var importMessage: String?
     @Published var cppSmokeSummary = ""
@@ -94,7 +100,7 @@ final class LutShopAppState: ObservableObject {
         self.lutCategories = Self.defaultLutCategories() + persistedLutLibrary.userCategories
         self.cameraDevices = Self.defaultCameraDevices()
         self.selectedPhotoId = photos.first?.id
-        self.activeLutId = luts.first?.id
+        self.activeLutId = luts.first(where: \.hasRenderableSource)?.id
         self.cppSmokeSummary = Self.makeCppSmokeSummary()
         self.ftpReceiverAddress = Self.detectPreferredReceiverAddress() ?? ""
         self.selectedCameraDeviceId = cameraDevices.first?.id
@@ -173,7 +179,8 @@ final class LutShopAppState: ObservableObject {
     }
 
     var activeLut: LutPreset? {
-        luts.first { $0.id == activeLutId } ?? luts.first
+        luts.first { $0.id == activeLutId && $0.hasRenderableSource }
+            ?? luts.first(where: \.hasRenderableSource)
     }
 
     func appliedLut(for photo: Photo) -> LutPreset? {
@@ -185,9 +192,13 @@ final class LutShopAppState: ObservableObject {
         appliedLut(for: photo)?.sourceFileName
     }
 
+    func appliedLutPath(for photo: Photo) -> String? {
+        appliedLut(for: photo)?.userPath
+    }
+
     var recommendedLuts: [LutPreset] {
         guard let currentPhoto else { return [] }
-        return bridge.recommendLuts(for: currentPhoto, from: luts)
+        return bridge.recommendLuts(for: currentPhoto, from: luts.filter(\.hasRenderableSource))
     }
 
     var visibleLutCategories: [LutCategoryGroup] {
@@ -379,6 +390,10 @@ final class LutShopAppState: ObservableObject {
 
     func validateLutLoad(_ id: String) {
         guard let lut = luts.first(where: { $0.id == id }) else { return }
+        guard lut.hasRenderableSource else {
+            lutLoadMessage = String(localized: "This LUT has no source file")
+            return
+        }
         let loadSummary = bridge.loadSummary(for: lut)
         let pixelSummary = bridge.previewPixelSummary(for: lut)
         lutLoadMessage = [loadSummary, pixelSummary]
@@ -411,7 +426,12 @@ final class LutShopAppState: ObservableObject {
         var exportedCount = 0
         for photo in exportPhotos {
             guard let image = renderedImage(for: photo) else { continue }
-            let outputImage = resizedImage(image, setting: exportSettings.size)
+            let resized = resizedImage(image, setting: exportSettings.size)
+            let outputImage = WatermarkRenderer.render(
+                image: resized,
+                photo: photo,
+                settings: watermarkSettings
+            )
             let fileURL = directory.appendingPathComponent(exportFileName(for: photo))
 
             do {
@@ -501,9 +521,11 @@ final class LutShopAppState: ObservableObject {
     }
 
     func deleteLut(_ id: String) {
+        let removed = luts.filter { $0.id == id }
+        removed.forEach(deleteUserLutFileIfNeeded)
         luts.removeAll { $0.id == id }
         if activeLutId == id {
-            activeLutId = luts.first?.id
+            activeLutId = luts.first(where: \.hasRenderableSource)?.id
         }
         for index in photos.indices where photos[index].appliedLutId == id {
             photos[index].appliedLutId = nil
@@ -511,6 +533,35 @@ final class LutShopAppState: ObservableObject {
         }
         persistLutState()
         persistLibraryState()
+    }
+
+    func lutCount(inCategoryGroup groupId: String) -> Int {
+        luts.filter { ($0.categoryGroupId ?? $0.category.rawValue) == groupId }.count
+    }
+
+    func deleteLutCategory(_ groupId: String) -> Bool {
+        guard let group = lutCategories.first(where: { $0.id == groupId }), !group.isSystem else {
+            return false
+        }
+
+        let removedIds = Set(luts.filter { ($0.categoryGroupId ?? $0.category.rawValue) == groupId }.map(\.id))
+        luts
+            .filter { removedIds.contains($0.id) }
+            .forEach(deleteUserLutFileIfNeeded)
+        luts.removeAll { removedIds.contains($0.id) }
+        lutCategories.removeAll { $0.id == groupId }
+
+        if let activeLutId, removedIds.contains(activeLutId) {
+            self.activeLutId = luts.first(where: \.hasRenderableSource)?.id
+        }
+        for index in photos.indices where photos[index].appliedLutId.map({ removedIds.contains($0) }) == true {
+            photos[index].appliedLutId = nil
+            photos[index].status = .raw
+        }
+
+        persistLutState()
+        persistLibraryState()
+        return true
     }
 
     func importPhotoLibraryItems(_ items: [PhotoLibraryImportPayload]) async {
@@ -550,6 +601,48 @@ final class LutShopAppState: ObservableObject {
         let lut = bridge.makeImportedLut(existingCount: luts.count)
         luts.insert(lut, at: 0)
         activeLutId = lut.id
+    }
+
+    func importUserLut(name: String, path: String, categoryGroupId: String, fileURL: URL?) -> String? {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPath = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard
+            (!trimmedName.isEmpty || fileURL != nil),
+            (!trimmedPath.isEmpty || fileURL != nil),
+            let group = lutCategories.first(where: { $0.id == categoryGroupId })
+        else {
+            return String(localized: "Could not add LUT")
+        }
+
+        guard let fileURL else {
+            return addUserLut(name: trimmedName, path: trimmedPath, categoryGroupId: categoryGroupId)
+                ? String(localized: "Added LUT")
+                : String(localized: "Could not add LUT")
+        }
+
+        let hasSecurityScope = fileURL.startAccessingSecurityScopedResource()
+        defer {
+            if hasSecurityScope {
+                fileURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        do {
+            let cubes = try ZipLutArchiveExtractor.extractCubeFiles(from: fileURL)
+            let imported = try saveImportedUserLuts(cubes, preferredName: trimmedName, group: group)
+            guard !imported.isEmpty else {
+                return String(localized: "No CUBE files found")
+            }
+            luts.insert(contentsOf: imported, at: 0)
+            activeLutId = imported.first?.id
+            persistLutState()
+            return String(
+                format: String(localized: "Imported %d LUT(s)"),
+                imported.count
+            )
+        } catch {
+            return error.localizedDescription
+        }
     }
 
     func addUserLut(name: String, path: String, categoryGroupId: String) -> Bool {
@@ -592,6 +685,36 @@ final class LutShopAppState: ObservableObject {
         activeLutId = lut.id
         persistLutState()
         return true
+    }
+
+    private func saveImportedUserLuts(_ cubes: [ImportedCubeFile], preferredName: String, group: LutCategoryGroup) throws -> [LutPreset] {
+        let directory = try Self.userLutDirectoryURL()
+        let usePreferredName = cubes.count == 1 && !preferredName.isEmpty
+
+        return try cubes.enumerated().map { index, cube in
+            let fileName = uniqueUserLutFileName(for: cube.fileName)
+            let fileURL = directory.appendingPathComponent(fileName)
+            try cube.data.write(to: fileURL, options: .atomic)
+
+            let fallbackName = URL(fileURLWithPath: cube.fileName).deletingPathExtension().lastPathComponent
+            return LutPreset(
+                id: "user-lut-\(Int(Date().timeIntervalSince1970 * 1000))-\(index)-\(UUID().uuidString.prefix(8))",
+                name: usePreferredName ? preferredName : fallbackName,
+                category: group.category,
+                categoryGroupId: group.id,
+                tags: ["user", "local", "cube"],
+                previewColors: Self.previewColors(for: group.category),
+                isFavorite: false,
+                usageCount: 0,
+                confidence: nil,
+                sourceFileName: nil,
+                cubeSize: nil,
+                cubeEntryCount: nil,
+                provider: String(localized: "Local"),
+                isBundled: false,
+                userPath: fileURL.path
+            )
+        }
     }
 
     func createLutCategory(named name: String) -> Bool {
@@ -662,6 +785,7 @@ final class LutShopAppState: ObservableObject {
             startedAt: Date(),
             status: .waiting,
             receivedCount: 0,
+            currentFileName: nil,
             lastFileName: nil
         )
         do {
@@ -682,6 +806,14 @@ final class LutShopAppState: ObservableObject {
     }
 
     private func configureCameraReceiveService() {
+        cameraReceiveService.onTransferStarted = { [weak self] fileName in
+            Task { @MainActor in
+                guard var session = self?.cameraSession else { return }
+                session.status = .receiving
+                session.currentFileName = fileName
+                self?.cameraSession = session
+            }
+        }
         cameraReceiveService.onFileReceived = { [weak self] receivedFile in
             Task { @MainActor in
                 self?.importCameraReceivedFile(receivedFile)
@@ -718,8 +850,9 @@ final class LutShopAppState: ObservableObject {
         photoSortOption = .newest
 
         if var session = cameraSession {
-            session.status = .receiving
+            session.status = .waiting
             session.receivedCount += 1
+            session.currentFileName = nil
             session.lastFileName = receivedFile.originalFileName
             cameraSession = session
         }
@@ -746,7 +879,7 @@ final class LutShopAppState: ObservableObject {
                 source: .ftpCamera,
                 hostHint: "",
                 port: 2121,
-                username: "lutshop"
+                username: "lee"
             )
         ]
     }
@@ -788,7 +921,9 @@ final class LutShopAppState: ObservableObject {
                 appliedLutId: persisted.appliedLutId,
                 lutIntensity: persisted.lutIntensity,
                 recommendedLutIds: persisted.recommendedLutIds,
-                palette: [.gray, .black]
+                palette: [.gray, .black],
+                exifSummary: persisted.exifSummary
+                    ?? WatermarkRenderer.exifSummary(fromImageAtPath: resolvedImagePath)
             )
         }
 
@@ -825,7 +960,8 @@ final class LutShopAppState: ObservableObject {
                     rating: photo.rating,
                     appliedLutId: photo.appliedLutId,
                     lutIntensity: photo.lutIntensity,
-                    recommendedLutIds: photo.recommendedLutIds
+                    recommendedLutIds: photo.recommendedLutIds,
+                    exifSummary: photo.exifSummary
                 )
             },
             sessions: sessions
@@ -844,6 +980,25 @@ final class LutShopAppState: ObservableObject {
     private func deletePhotoFileIfNeeded(_ photo: Photo) {
         guard let imagePath = photo.imagePath, !imagePath.isEmpty else { return }
         try? FileManager.default.removeItem(atPath: imagePath)
+    }
+
+    private func deleteUserLutFileIfNeeded(_ lut: LutPreset) {
+        guard
+            !lut.isBundled,
+            let userPath = lut.userPath,
+            !userPath.isEmpty,
+            !userPath.lowercased().hasPrefix("http://"),
+            !userPath.lowercased().hasPrefix("https://")
+        else {
+            return
+        }
+
+        guard let userDirectory = try? Self.userLutDirectoryURL() else { return }
+        let fileURL = URL(fileURLWithPath: userPath)
+        let standardizedPath = fileURL.standardizedFileURL.path
+        let userDirectoryPath = userDirectory.standardizedFileURL.path
+        guard standardizedPath.hasPrefix(userDirectoryPath + "/") else { return }
+        try? FileManager.default.removeItem(at: fileURL)
     }
 
     private static func loadPersistedLutLibrary() -> (luts: [PersistedLut], userCategories: [LutCategoryGroup]) {
@@ -872,6 +1027,7 @@ final class LutShopAppState: ObservableObject {
                 merged[index].provider = persisted.provider ?? merged[index].provider
                 merged[index].userPath = persisted.userPath
             } else {
+                guard persisted.userPath?.isEmpty == false else { continue }
                 merged.insert(
                     LutPreset(
                         id: persisted.id,
@@ -937,7 +1093,7 @@ final class LutShopAppState: ObservableObject {
                 source: .ftpCamera,
                 hostHint: endpoint.host,
                 port: endpoint.port,
-                username: "lutshop",
+                username: "lee",
                 isDiscovered: true
             )
         }
@@ -1010,7 +1166,8 @@ final class LutShopAppState: ObservableObject {
                 appliedLutId: nil,
                 lutIntensity: 0.55,
                 recommendedLutIds: luts.prefix(2).map(\.id),
-                palette: [.gray, .black]
+                palette: [.gray, .black],
+                exifSummary: WatermarkRenderer.exifSummary(fromImageData: item.data)
             )
         }
     }
@@ -1042,7 +1199,8 @@ final class LutShopAppState: ObservableObject {
                 appliedLutId: nil,
                 lutIntensity: 0.55,
                 recommendedLutIds: luts.prefix(2).map(\.id),
-                palette: [.gray, .black]
+                palette: [.gray, .black],
+                exifSummary: WatermarkRenderer.exifSummary(fromImageAtPath: targetURL.path)
             )
         } catch {
             return nil
@@ -1089,8 +1247,62 @@ final class LutShopAppState: ObservableObject {
     }
 
     private func renderedImage(for photo: Photo) -> UIImage? {
-        if let lutFileName = appliedLutFileName(for: photo), photo.lutIntensity > 0 {
-            if let imagePath = photo.imagePath,
+        let lutFileName = appliedLutFileName(for: photo)
+        let lutPath = appliedLutPath(for: photo)
+        if photo.lutIntensity > 0, lutFileName != nil || lutPath != nil {
+            if let lutPath,
+               let imagePath = photo.imagePath,
+               let image = CoreImageLutRenderer.shared.applyUserLut(
+                atPath: lutPath,
+                toImageAtPath: imagePath,
+                intensity: photo.lutIntensity
+               ) {
+                return image
+            }
+            if let lutPath,
+               let image = CoreImageLutRenderer.shared.applyUserLut(
+                atPath: lutPath,
+                toImageNamed: photo.imageName,
+                intensity: photo.lutIntensity
+               ) {
+                return image
+            }
+            if let lutFileName,
+               let imagePath = photo.imagePath,
+               let image = CoreImageLutRenderer.shared.applyBundledLut(
+                named: lutFileName,
+                toImageAtPath: imagePath,
+                intensity: photo.lutIntensity
+               ) {
+                return image
+            }
+            if let lutFileName,
+               let image = CoreImageLutRenderer.shared.applyBundledLut(
+                named: lutFileName,
+                toImageNamed: photo.imageName,
+                intensity: photo.lutIntensity
+            ) {
+                return image
+            }
+            if let lutPath,
+               let imagePath = photo.imagePath,
+               let image = LutShopCppBridge.applyUserLut(
+                atPath: lutPath,
+                toImageAtPath: imagePath,
+                intensity: photo.lutIntensity
+               ) {
+                return image
+            }
+            if let lutPath,
+               let image = LutShopCppBridge.applyUserLut(
+                atPath: lutPath,
+                toImageNamed: photo.imageName,
+                intensity: photo.lutIntensity
+               ) {
+                return image
+            }
+            if let lutFileName,
+               let imagePath = photo.imagePath,
                let image = LutShopCppBridge.previewImage(
                 byApplyingBundledLutNamed: lutFileName,
                 toImageAtPath: imagePath,
@@ -1098,7 +1310,8 @@ final class LutShopAppState: ObservableObject {
                ) {
                 return image
             }
-            if let image = LutShopCppBridge.previewImage(
+            if let lutFileName,
+               let image = LutShopCppBridge.previewImage(
                 byApplyingBundledLutNamed: lutFileName,
                 toImageNamed: photo.imageName,
                 intensity: photo.lutIntensity
@@ -1188,6 +1401,21 @@ final class LutShopAppState: ObservableObject {
         return root.appendingPathComponent("PhotoLibraryIndex.json")
     }
 
+    private static func loadWatermarkSettings() -> WatermarkSettings {
+        guard
+            let data = UserDefaults.standard.data(forKey: "lutshop.watermarkSettings"),
+            let settings = try? JSONDecoder().decode(WatermarkSettings.self, from: data)
+        else {
+            return WatermarkSettings()
+        }
+        return settings
+    }
+
+    private static func persistWatermarkSettings(_ settings: WatermarkSettings) {
+        guard let data = try? JSONEncoder().encode(settings) else { return }
+        UserDefaults.standard.set(data, forKey: "lutshop.watermarkSettings")
+    }
+
     private static func lutIndexURL() throws -> URL {
         let root = try FileManager.default.url(
             for: .applicationSupportDirectory,
@@ -1197,6 +1425,18 @@ final class LutShopAppState: ObservableObject {
         )
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         return root.appendingPathComponent("LutLibraryIndex.json")
+    }
+
+    private static func userLutDirectoryURL() throws -> URL {
+        let root = try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let directory = root.appendingPathComponent("UserLuts", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
     }
 
     private static func detectPreferredReceiverAddress() -> String? {
@@ -1311,5 +1551,11 @@ final class LutShopAppState: ObservableObject {
             return "\(base)-\(timestamp)"
         }
         return "\(base)-\(timestamp).\(ext.lowercased())"
+    }
+
+    private func uniqueUserLutFileName(for originalFileName: String) -> String {
+        let base = sanitizedFileBaseName(originalFileName)
+        let suffix = UUID().uuidString.prefix(8).lowercased()
+        return "\(base)-\(suffix).cube"
     }
 }

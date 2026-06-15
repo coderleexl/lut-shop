@@ -47,6 +47,13 @@ NSString *CubeTextForFileName(NSString *fileName) {
     return [NSString stringWithContentsOfURL:url encoding:NSUTF8StringEncoding error:nil];
 }
 
+NSString *CubeTextAtPath(NSString *path) {
+    if (path.length == 0) {
+        return nil;
+    }
+    return [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+}
+
 UIImage *PrototypeImage(NSString *imageName) {
     NSURL *url = [[NSBundle mainBundle] URLForResource:imageName withExtension:@"jpg" subdirectory:@"PrototypePhotos"];
     if (url == nil) {
@@ -62,6 +69,18 @@ UIImage *ImageAtPath(NSString *imagePath) {
     return [UIImage imageWithContentsOfFile:imagePath];
 }
 
+UIImage *NormalizedImage(UIImage *image) {
+    if (image == nil || image.imageOrientation == UIImageOrientationUp) {
+        return image;
+    }
+
+    UIGraphicsBeginImageContextWithOptions(image.size, NO, image.scale);
+    [image drawInRect:CGRectMake(0, 0, image.size.width, image.size.height)];
+    UIImage *normalized = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return normalized ?: image;
+}
+
 CGSize PreviewSizeForImage(UIImage *image, CGFloat maxDimension) {
     CGSize size = image.size;
     CGFloat longest = std::max(size.width, size.height);
@@ -73,8 +92,7 @@ CGSize PreviewSizeForImage(UIImage *image, CGFloat maxDimension) {
                       std::max<CGFloat>(1.0, std::round(size.height * scale)));
 }
 
-UIImage *ApplyBundledLutToImage(NSString *fileName, UIImage *sourceImage, double intensity) {
-    NSString *text = CubeTextForFileName(fileName);
+UIImage *ApplyLutTextToImage(NSString *text, UIImage *sourceImage, double intensity) {
     if (text == nil || sourceImage == nil) {
         return sourceImage;
     }
@@ -84,6 +102,7 @@ UIImage *ApplyBundledLutToImage(NSString *fileName, UIImage *sourceImage, double
         return sourceImage;
     }
 
+    sourceImage = NormalizedImage(sourceImage);
     CGSize targetSize = PreviewSizeForImage(sourceImage, 900.0);
     if (CGSizeEqualToSize(targetSize, CGSizeZero)) {
         return sourceImage;
@@ -124,7 +143,7 @@ UIImage *ApplyBundledLutToImage(NSString *fileName, UIImage *sourceImage, double
             pixels[offset + 1] / 255.0F,
             pixels[offset + 2] / 255.0F,
         };
-        const auto output = lutshop::applyCubeNearest(parsed.cube, input, blend);
+        const auto output = lutshop::applyCubeTrilinear(parsed.cube, input, blend);
         pixels[offset] = static_cast<unsigned char>(std::round(std::clamp(output.r, 0.0F, 1.0F) * 255.0F));
         pixels[offset + 1] = static_cast<unsigned char>(std::round(std::clamp(output.g, 0.0F, 1.0F) * 255.0F));
         pixels[offset + 2] = static_cast<unsigned char>(std::round(std::clamp(output.b, 0.0F, 1.0F) * 255.0F));
@@ -139,6 +158,14 @@ UIImage *ApplyBundledLutToImage(NSString *fileName, UIImage *sourceImage, double
     UIImage *outputImage = [UIImage imageWithCGImage:cgImage scale:[UIScreen mainScreen].scale orientation:UIImageOrientationUp];
     CGImageRelease(cgImage);
     return outputImage;
+}
+
+UIImage *ApplyBundledLutToImage(NSString *fileName, UIImage *sourceImage, double intensity) {
+    return ApplyLutTextToImage(CubeTextForFileName(fileName), sourceImage, intensity);
+}
+
+UIImage *ApplyUserLutToImage(NSString *path, UIImage *sourceImage, double intensity) {
+    return ApplyLutTextToImage(CubeTextAtPath(path), sourceImage, intensity);
 }
 
 }  // namespace
@@ -246,6 +273,18 @@ UIImage *ApplyBundledLutToImage(NSString *fileName, UIImage *sourceImage, double
                                                 toImageAtPath:(NSString *)imagePath
                                                    intensity:(double)intensity {
     return ApplyBundledLutToImage(fileName, ImageAtPath(imagePath), intensity);
+}
+
++ (nullable UIImage *)userLutPreviewImageByApplyingLutAtPath:(NSString *)lutPath
+                                                 toImageNamed:(NSString *)imageName
+                                                   intensity:(double)intensity {
+    return ApplyUserLutToImage(lutPath, PrototypeImage(imageName), intensity);
+}
+
++ (nullable UIImage *)userLutPreviewImageByApplyingLutAtPath:(NSString *)lutPath
+                                                toImageAtPath:(NSString *)imagePath
+                                                   intensity:(double)intensity {
+    return ApplyUserLutToImage(lutPath, ImageAtPath(imagePath), intensity);
 }
 
 @end

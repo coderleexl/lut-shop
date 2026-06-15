@@ -1,5 +1,22 @@
 # lut-shop Android App Direction
 
+## Quick Start
+
+From the repository root:
+
+```bash
+./android.sh
+```
+
+The script builds the debug APK with the checked-in Gradle Wrapper. If `adb` can see an Android device or emulator, it also installs and launches `com.lutshop`; otherwise it leaves the APK at `apps/android/app/build/outputs/apk/debug/app-debug.apk`.
+
+Manual build:
+
+```bash
+cd apps/android
+./gradlew :app:assembleDebug
+```
+
 Recommended production path:
 
 1. Create a Kotlin + Jetpack Compose app under `apps/android/`.
@@ -19,7 +36,7 @@ The native Compose shell now lives in `apps/android/app/src/main/java/com/lutsho
 - `AppState.kt`: UI state and workflow actions.
 - `ui/*Screen.kt`: Gallery, Preview, LUT Library, and Export screens based on the provided mobile reference image.
 
-The Gradle files are included for Android Studio import, but this environment does not currently have `gradle` installed, so Android compilation has not been run here.
+The Gradle Wrapper is included for Android Studio import and command-line builds.
 
 The next JNI smoke test should link the NDK build to `../../core` and call the C ABI in `core/include/lutshop/bridge_c.h`:
 

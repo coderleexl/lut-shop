@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <cmath>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -20,6 +21,10 @@ void require(bool condition, const std::string& message) {
     std::cerr << "FAIL: " << message << '\n';
     std::exit(1);
   }
+}
+
+bool near(float left, float right) {
+  return std::abs(left - right) < 0.0001F;
 }
 
 void test_photo_model_defaults() {
@@ -292,12 +297,12 @@ void test_c_bridge_exposes_cube_metadata_and_preview_pixel_apply() {
       "TITLE \"Bridge Metadata LUT\"\n"
       "LUT_3D_SIZE 2\n"
       "0 0 0\n"
-      "0 0 1\n"
-      "0 1 0\n"
-      "0 1 1\n"
       "1 0 0\n"
-      "1 0 1\n"
+      "0 1 0\n"
       "1 1 0\n"
+      "0 0 1\n"
+      "1 0 1\n"
+      "0 1 1\n"
       "0.25 0.5 0.75\n";
 
   const auto metadata = lutshop_parse_cube_metadata(cube, "fallback.cube");
@@ -310,11 +315,46 @@ void test_c_bridge_exposes_cube_metadata_and_preview_pixel_apply() {
   const lutshop_rgb input{1.0F, 1.0F, 1.0F};
   const auto output = lutshop_apply_cube_to_rgb(cube, input, 1.0F);
   require(output.r == 0.25F && output.g == 0.5F && output.b == 0.75F,
-          "c bridge applies nearest cube color for preview pixel");
+          "c bridge applies cube color for preview pixel");
 
   const auto mixed = lutshop_apply_cube_to_rgb(cube, input, 0.5F);
   require(mixed.r == 0.625F && mixed.g == 0.75F && mixed.b == 0.875F,
           "c bridge blends cube color by intensity");
+}
+
+void test_cube_application_uses_red_fastest_order_and_trilinear_interpolation() {
+  const std::string cubeText =
+      "TITLE \"Axis Order LUT\"\n"
+      "LUT_3D_SIZE 2\n"
+      "0.0 0.0 0.0\n"
+      "0.8 0.0 0.0\n"
+      "0.0 0.6 0.0\n"
+      "0.8 0.6 0.0\n"
+      "0.0 0.0 0.4\n"
+      "0.8 0.0 0.4\n"
+      "0.0 0.6 0.4\n"
+      "0.8 0.6 0.4\n";
+
+  const auto parsed = lutshop::parseCube(cubeText);
+  require(parsed.success, "axis order cube parses");
+
+  const auto red = lutshop::applyCubeTrilinear(parsed.cube, {1.0F, 0.0F, 0.0F}, 1.0F);
+  require(near(red.r, 0.8F) && near(red.g, 0.0F) && near(red.b, 0.0F),
+          "cube application treats red as fastest-moving axis");
+
+  const auto green = lutshop::applyCubeTrilinear(parsed.cube, {0.0F, 1.0F, 0.0F}, 1.0F);
+  require(near(green.r, 0.0F) && near(green.g, 0.6F) && near(green.b, 0.0F),
+          "cube application treats green as middle axis");
+
+  const auto blue = lutshop::applyCubeTrilinear(parsed.cube, {0.0F, 0.0F, 1.0F}, 1.0F);
+  require(near(blue.r, 0.0F) && near(blue.g, 0.0F) && near(blue.b, 0.4F),
+          "cube application treats blue as slowest-moving axis");
+
+  const auto interpolated =
+      lutshop::applyCubeTrilinear(parsed.cube, {0.5F, 0.5F, 0.5F}, 1.0F);
+  require(near(interpolated.r, 0.4F) && near(interpolated.g, 0.3F) &&
+              near(interpolated.b, 0.2F),
+          "cube application interpolates between neighboring samples");
 }
 
 }  // namespace
@@ -332,6 +372,7 @@ int main() {
   test_cube_parser_reads_title_size_and_entry_count();
   test_c_bridge_exposes_version_and_import_count_for_objcxx_and_jni();
   test_c_bridge_exposes_cube_metadata_and_preview_pixel_apply();
+  test_cube_application_uses_red_fastest_order_and_trilinear_interpolation();
   std::cout << "lutshop_core_tests passed\n";
   return 0;
 }

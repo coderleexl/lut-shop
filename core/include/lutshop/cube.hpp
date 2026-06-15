@@ -24,6 +24,14 @@ struct CubeParseResult {
 };
 
 CubeParseResult parseCube(const std::string& cubeText);
-CubeEntry applyCubeNearest(const CubeLut& cube, CubeEntry input, float intensity);
+CubeEntry applyCubeTrilinear(const CubeLut& cube, CubeEntry input, float intensity);
+
+// Apply LUT to an RGBA8 pixel buffer in-place. Returns true on success.
+bool applyCubeToRgbaBuffer(const CubeLut& cube,
+                           unsigned char* pixels,
+                           int width,
+                           int height,
+                           int stride,
+                           float intensity);
 
 }  // namespace lutshop

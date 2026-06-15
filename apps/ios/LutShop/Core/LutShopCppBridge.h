@@ -17,6 +17,14 @@ NS_ASSUME_NONNULL_BEGIN
 + (nullable UIImage *)previewImageByApplyingBundledLutNamed:(NSString *)fileName
                                                 toImageAtPath:(NSString *)imagePath
                                                    intensity:(double)intensity;
++ (nullable UIImage *)userLutPreviewImageByApplyingLutAtPath:(NSString *)lutPath
+                                                 toImageNamed:(NSString *)imageName
+                                                   intensity:(double)intensity
+    NS_SWIFT_NAME(applyUserLut(atPath:toImageNamed:intensity:));
++ (nullable UIImage *)userLutPreviewImageByApplyingLutAtPath:(NSString *)lutPath
+                                                toImageAtPath:(NSString *)imagePath
+                                                   intensity:(double)intensity
+    NS_SWIFT_NAME(applyUserLut(atPath:toImageAtPath:intensity:));
 
 @end
 

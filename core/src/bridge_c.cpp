@@ -91,6 +91,26 @@ lutshop_rgb lutshop_apply_cube_to_rgb(const char* cube_text,
     return input;
   }
 
-  const auto output = lutshop::applyCubeNearest(result.cube, {input.r, input.g, input.b}, intensity);
+  const auto output = lutshop::applyCubeTrilinear(result.cube, {input.r, input.g, input.b}, intensity);
   return {output.r, output.g, output.b};
+}
+
+int lutshop_apply_cube_to_rgba(const char* cube_text,
+                               unsigned char* pixels,
+                               int width,
+                               int height,
+                               int stride,
+                               float intensity) {
+  if (cube_text == nullptr || pixels == nullptr) {
+    return -1;
+  }
+
+  const auto result = lutshop::parseCube(cube_text);
+  if (!result.success) {
+    return -1;
+  }
+
+  return lutshop::applyCubeToRgbaBuffer(result.cube, pixels, width, height, stride, intensity)
+             ? 0
+             : -1;
 }

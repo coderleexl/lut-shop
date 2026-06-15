@@ -26,6 +26,8 @@ struct RootView: View {
                 PreviewView()
             case .luts:
                 LutsView()
+            case .watermark:
+                WatermarkView()
             case .export:
                 ExportView()
             }

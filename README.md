@@ -50,6 +50,22 @@ LUT_SHOP_DEVICE="iPhone 17 Pro" ./mac.sh
 
 脚本不会卸载 App，也不会清空模拟器数据，所以已经导入的图库索引会保留。
 
+## Android 快速开始
+
+前置条件：
+
+- Android Studio 或 Android SDK 可用
+- JDK 17
+- 如需自动安装启动，先连接 Android 设备或启动模拟器，并确保 `adb` 可用
+
+运行：
+
+```bash
+./android.sh
+```
+
+脚本会通过 `apps/android/gradlew` 构建 debug APK。检测到 Android 设备或模拟器时，会自动安装并启动 `com.lutshop`；没有设备时只完成构建。
+
 ## 手动构建
 
 ```bash
@@ -71,6 +87,7 @@ core/                  跨端 C++ core
 assets/                设计和素材入口
 docs/                  产品、架构、计划和审计记录
 mac.sh                 macOS 快速构建/安装/启动脚本
+android.sh             Android 快速构建/安装/启动脚本
 ```
 
 ## iOS 关键目录
@@ -115,4 +132,4 @@ apps/ios/LutShop/Resources/Localizable.xcstrings 中英文翻译
 
 ## Android
 
-Android 方向文档在 [apps/android/README.md](apps/android/README.md)。当前仓库重点先完成 iOS 路径，Android 后续建议通过 Kotlin + Compose + NDK/JNI 接入同一个 C++ core。
+Android 方向文档在 [apps/android/README.md](apps/android/README.md)。当前已有 Kotlin + Compose 原型骨架和 Gradle Wrapper，可以通过 `./android.sh` 先跑通 debug build。后续建议通过 NDK/JNI 接入同一个 C++ core。

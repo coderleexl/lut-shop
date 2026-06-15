@@ -2,7 +2,10 @@ package com.lutshop.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -21,11 +24,13 @@ fun LutShopApp(state: LutShopAppState) {
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black)
+                    .windowInsetsPadding(WindowInsets.systemBars)
             ) {
                 when (state.selectedTab) {
                     MainTab.Gallery -> GalleryScreen(state)
                     MainTab.Preview -> PreviewScreen(state)
                     MainTab.Luts -> LutsScreen(state)
+                    MainTab.Watermark -> WatermarkScreen(state)
                     MainTab.Export -> ExportScreen(state)
                 }
                 BottomChrome(state)

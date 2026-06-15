@@ -12,6 +12,7 @@ final class CameraReceiveService {
     }
 
     var onFileReceived: ((CameraReceivedFile) -> Void)?
+    var onTransferStarted: ((String) -> Void)?
     var onError: ((String) -> Void)?
 
     private let queue = DispatchQueue(label: "com.lutshop.camera-receive")
@@ -57,6 +58,9 @@ final class CameraReceiveService {
             configuration: configuration,
             host: host,
             queue: queue,
+            transferStartedHandler: { [weak self] fileName in
+                self?.onTransferStarted?(fileName)
+            },
             fileHandler: { [weak self] file in
                 self?.onFileReceived?(file)
             },
@@ -77,6 +81,7 @@ private final class FTPControlSession {
     private let configuration: FtpReceiverConfiguration
     private let host: String
     private let queue: DispatchQueue
+    private let transferStartedHandler: (String) -> Void
     private let fileHandler: (CameraReceivedFile) -> Void
     private let closeHandler: () -> Void
     private var commandBuffer = Data()
@@ -88,6 +93,7 @@ private final class FTPControlSession {
         configuration: FtpReceiverConfiguration,
         host: String,
         queue: DispatchQueue,
+        transferStartedHandler: @escaping (String) -> Void,
         fileHandler: @escaping (CameraReceivedFile) -> Void,
         closeHandler: @escaping () -> Void
     ) {
@@ -95,6 +101,7 @@ private final class FTPControlSession {
         self.configuration = configuration
         self.host = host
         self.queue = queue
+        self.transferStartedHandler = transferStartedHandler
         self.fileHandler = fileHandler
         self.closeHandler = closeHandler
     }
@@ -224,6 +231,7 @@ private final class FTPControlSession {
             return
         }
 
+        transferStartedHandler(fileName)
         send("150 Opening data connection")
         let targetURL: URL
         do {

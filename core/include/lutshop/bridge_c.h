@@ -42,6 +42,14 @@ lutshop_rgb lutshop_apply_cube_to_rgb(const char* cube_text,
                                       lutshop_rgb input,
                                       float intensity);
 
+// Apply LUT to an RGBA8 pixel buffer in-place. Returns 0 on success, -1 on error.
+int lutshop_apply_cube_to_rgba(const char* cube_text,
+                               unsigned char* pixels,
+                               int width,
+                               int height,
+                               int stride,
+                               float intensity);
+
 #ifdef __cplusplus
 }
 #endif

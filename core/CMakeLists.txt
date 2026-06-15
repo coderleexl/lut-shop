@@ -1,3 +1,6 @@
+cmake_minimum_required(VERSION 3.22)
+project(lutshop_core LANGUAGES CXX)
+
 add_library(lutshop_core STATIC
   src/bridge_c.cpp
   src/core.cpp

@@ -115,12 +115,13 @@ final class MockLutShopCoreBridge: LutShopCoreBridge {
                 return nil
             }
 
-            let category = category(from: item["category"] as? String)
+            let display = bundledDisplayMetadata(for: fileName, fallbackName: name, fallbackProvider: item["provider"] as? String)
+            let category = display.category
             return LutPreset(
                 id: id,
-                name: name,
+                name: display.name,
                 category: category,
-                tags: ["sony", "cube", fileName],
+                tags: display.tags + ["cube", fileName],
                 previewColors: previewColors(for: category),
                 isFavorite: false,
                 usageCount: 0,
@@ -128,9 +129,31 @@ final class MockLutShopCoreBridge: LutShopCoreBridge {
                 sourceFileName: fileName,
                 cubeSize: (item["cubeSize"] as? NSNumber)?.intValue,
                 cubeEntryCount: (item["entryCount"] as? NSNumber)?.intValue,
-                provider: item["provider"] as? String,
+                provider: display.provider,
                 isBundled: true
             )
+        }
+    }
+
+    private static func bundledDisplayMetadata(
+        for fileName: String,
+        fallbackName: String,
+        fallbackProvider: String?
+    ) -> (name: String, category: LutCategory, provider: String, tags: [String]) {
+        let provider = fallbackProvider ?? String(localized: "Bundled")
+        let sony = String(localized: "Sony")
+
+        switch fileName {
+        case "AA2_COLOR_V.cube":
+            return (String(localized: "Sony AA2 胶片色彩"), .film, sony, ["sony", "photo-srgb", "film"])
+        case "AA_BW_V.cube":
+            return (String(localized: "Sony AA 黑白胶片"), .blackWhite, sony, ["sony", "photo-srgb", "black-white"])
+        default:
+            let cleanName = fallbackName
+                .replacingOccurrences(of: "_", with: " ")
+                .replacingOccurrences(of: "-", with: " ")
+            let category = category(from: nil)
+            return (cleanName, category, provider, ["bundled"])
         }
     }
 
