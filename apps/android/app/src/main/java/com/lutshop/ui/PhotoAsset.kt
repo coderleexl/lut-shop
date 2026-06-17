@@ -16,7 +16,8 @@ fun PhotoAsset(
     localPath: String?,
     fallbackColors: List<Color>,
     modifier: Modifier = Modifier,
-    renderedImagePath: String? = null
+    renderedImagePath: String? = null,
+    contentScale: ContentScale = ContentScale.Crop
 ) {
     val model: Any? = when {
         !renderedImagePath.isNullOrBlank() && File(renderedImagePath).exists() -> File(renderedImagePath)
@@ -25,7 +26,7 @@ fun PhotoAsset(
         else -> null
     }
     if (model != null) {
-        AsyncImage(model = model, contentDescription = null, contentScale = ContentScale.Crop, modifier = modifier)
+        AsyncImage(model = model, contentDescription = null, contentScale = contentScale, modifier = modifier)
     } else {
         Box(modifier.background(safeLinearGradient(fallbackColors)))
     }

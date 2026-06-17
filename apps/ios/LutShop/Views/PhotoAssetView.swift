@@ -12,6 +12,8 @@ struct PhotoAssetView: View {
     var exifSummary: PhotoExifSummary?
     var fileName: String = ""
     var sessionName: String = ""
+    var contentMode: ContentMode = .fill
+    var imageScale: CGFloat?
 
     var body: some View {
         if let image = UIImage.lutShopPhoto(
@@ -27,8 +29,8 @@ struct PhotoAssetView: View {
         ) {
             Image(uiImage: image)
                 .resizable()
-                .aspectRatio(contentMode: watermarkSettings?.isEnabled == true ? .fit : .fill)
-                .scaleEffect(watermarkSettings?.isEnabled == true ? 1 : 1.45)
+                .aspectRatio(contentMode: watermarkSettings?.isEnabled == true ? .fit : contentMode)
+                .scaleEffect(imageScale ?? (watermarkSettings?.isEnabled == true ? 1 : 1.45))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         } else {
             LinearGradient(colors: fallbackColors, startPoint: .topLeading, endPoint: .bottomTrailing)

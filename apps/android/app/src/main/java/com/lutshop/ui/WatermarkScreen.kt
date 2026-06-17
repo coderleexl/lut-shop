@@ -115,7 +115,7 @@ private fun WatermarkPreviewCard(style: WatermarkStyle) {
             .background(Color.White.copy(alpha = 0.08f))
             .padding(12.dp)
     ) {
-        WatermarkPreview(style, large = true, modifier = Modifier.fillMaxWidth().aspectRatio(0.86f))
+        WatermarkPreview(style, large = true, modifier = Modifier.fillMaxWidth().aspectRatio(0.78f))
     }
 }
 
@@ -150,7 +150,7 @@ private fun WatermarkPreview(style: WatermarkStyle, large: Boolean, modifier: Mo
             .background(if (style == WatermarkStyle.None) Color.White.copy(alpha = 0.05f) else Color.White)
     ) {
         val pad = size.minDimension * if (large) 0.06f else 0.05f
-        val footer = if (style == WatermarkStyle.None) 0f else size.height * if (large) 0.2f else 0.23f
+        val footer = if (style == WatermarkStyle.None) 0f else size.height * if (large) 0.15f else 0.16f
         val imageRect = Size(size.width - pad * 2f, size.height - pad * 2f - footer)
         val imageTopLeft = Offset(pad, pad)
         drawRoundRect(
@@ -172,8 +172,8 @@ private fun WatermarkPreview(style: WatermarkStyle, large: Boolean, modifier: Mo
         )
 
         if (style != WatermarkStyle.None) {
-            val brandSize = if (large) size.height * 0.055f else size.height * 0.045f
-            val detailSize = if (large) size.height * 0.026f else size.height * 0.022f
+            val brandSize = if (large) size.height * 0.065f else size.height * 0.055f
+            val detailSize = if (large) size.height * 0.03f else size.height * 0.026f
             drawIntoCanvas { canvas ->
                 val detailPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
                     color = android.graphics.Color.rgb(86, 86, 86)

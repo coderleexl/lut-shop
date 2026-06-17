@@ -162,13 +162,17 @@ struct ExportView: View {
         progress = 0
         didComplete = false
         Task {
-            for step in 1...10 {
-                try? await Task.sleep(for: .milliseconds(120))
-                progress = Double(step) / 10
+            let exportedCount = await state.exportSelectedPhotosToLocalFiles { completedCount, totalCount in
+                guard totalCount > 0 else { return }
+                await MainActor.run {
+                    progress = Double(completedCount) / Double(totalCount)
+                }
             }
-            let exportedCount = await state.exportSelectedPhotosToLocalFiles()
             isExporting = false
             didComplete = exportedCount > 0
+            if exportedCount == 0 {
+                progress = 0
+            }
         }
     }
 }

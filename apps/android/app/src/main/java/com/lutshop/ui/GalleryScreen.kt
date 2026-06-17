@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -417,7 +418,7 @@ private fun PhotoTile(state: LutShopAppState, photo: Photo) {
     }
     Box(
         modifier = Modifier
-            .aspectRatio(0.82f)
+            .aspectRatio(1f)
             .clip(RoundedCornerShape(8.dp))
             .border(BorderStroke(2.dp, borderColor), RoundedCornerShape(8.dp))
             .clickable { state.openOrTogglePhoto(photo.id) }
@@ -427,7 +428,8 @@ private fun PhotoTile(state: LutShopAppState, photo: Photo) {
             localPath = photo.localPath,
             fallbackColors = photo.palette,
             modifier = Modifier.matchParentSize(),
-            renderedImagePath = photo.renderedImagePath
+            renderedImagePath = photo.renderedImagePath,
+            contentScale = ContentScale.Fit
         )
         Box(modifier = Modifier.matchParentSize().padding(7.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

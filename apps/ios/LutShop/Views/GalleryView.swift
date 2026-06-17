@@ -9,7 +9,11 @@ struct GalleryView: View {
     @State private var showFileImporter = false
     @State private var showDeleteSelectionConfirmation = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 3)
+    @State private var galleryColumnCount = 3
+
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 8), count: galleryColumnCount)
+    }
 
     var body: some View {
         ScrollView {
@@ -22,6 +26,7 @@ struct GalleryView: View {
                 cppSmokeBanner
                 sessionBar
                 filterTabs
+                galleryScaleControls
                 photoGrid
             }
             .padding(.horizontal, 14)
@@ -498,6 +503,49 @@ struct GalleryView: View {
         .padding(.top, 4)
     }
 
+    private var galleryScaleControls: some View {
+        HStack(spacing: 10) {
+            Label(String(localized: "Grid size"), systemImage: "rectangle.grid.2x2")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white.opacity(0.68))
+
+            Spacer()
+
+            Button {
+                galleryColumnCount = min(4, galleryColumnCount + 1)
+            } label: {
+                Image(systemName: "minus.magnifyingglass")
+                    .font(.system(size: 15, weight: .bold))
+                    .frame(width: 38, height: 34)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(galleryColumnCount >= 4 ? .white.opacity(0.28) : .white)
+            .disabled(galleryColumnCount >= 4)
+            .accessibilityLabel(Text(String(localized: "Decrease grid size")))
+
+            Text(String(format: String(localized: "%d columns"), galleryColumnCount))
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 68)
+
+            Button {
+                galleryColumnCount = max(2, galleryColumnCount - 1)
+            } label: {
+                Image(systemName: "plus.magnifyingglass")
+                    .font(.system(size: 15, weight: .bold))
+                    .frame(width: 38, height: 34)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(galleryColumnCount <= 2 ? .white.opacity(0.28) : .white)
+            .disabled(galleryColumnCount <= 2)
+            .accessibilityLabel(Text(String(localized: "Increase grid size")))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.05)))
+    }
+
     private func filterButton(_ title: String, _ status: PhotoStatus?, favorites: Bool, count: Int?) -> some View {
         let selected = state.activeFilter == status && state.showFavoritesOnly == favorites
         return Button {
@@ -555,7 +603,7 @@ struct GalleryView: View {
                 .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
                 .overlay(RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.05)))
             } else {
-                LazyVGrid(columns: columns, spacing: 6) {
+                LazyVGrid(columns: columns, spacing: 8) {
                     ForEach(state.filteredPhotos) { photo in
                         PhotoTile(photo: photo)
                     }
@@ -580,12 +628,14 @@ struct PhotoTile: View {
                         fallbackColors: photo.palette,
                         lutFileName: state.appliedLutFileName(for: photo),
                         lutPath: state.appliedLutPath(for: photo),
-                        lutIntensity: photo.lutIntensity
+                        lutIntensity: photo.lutIntensity,
+                        contentMode: .fit,
+                        imageScale: 1
                     )
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(.black.opacity(0.18))
-                .aspectRatio(0.82, contentMode: .fit)
+                .overlay(.black.opacity(0.10))
+                .aspectRatio(1, contentMode: .fit)
                 .overlay(alignment: .topLeading) {
                     Text(photo.formatBadgeText)
                         .font(.system(size: 11, weight: .bold))

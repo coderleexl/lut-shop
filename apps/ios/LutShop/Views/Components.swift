@@ -183,6 +183,7 @@ struct ActionButton: View {
 
 struct LutStrip: View {
     let colors: [Color]
+    var cornerRadius: CGFloat = 999
 
     var body: some View {
         HStack(spacing: 0) {
@@ -190,7 +191,7 @@ struct LutStrip: View {
                 color
             }
         }
-        .clipShape(Capsule())
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
     }
 }
 

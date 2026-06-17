@@ -1,5 +1,6 @@
 package com.lutshop.ui
 
+import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -36,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -51,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import com.lutshop.LutShopAppState
 import com.lutshop.MainTab
 import com.lutshop.R
+import java.io.File
 
 @Composable
 fun PreviewScreen(state: LutShopAppState) {
@@ -70,6 +74,9 @@ fun PreviewScreen(state: LutShopAppState) {
     var compareMode by remember { mutableStateOf(false) }
     var splitPosition by remember { mutableFloatStateOf(0.5f) }
     var draftIntensity by remember(photo.id) { mutableFloatStateOf(state.lutIntensity) }
+    val photoAspectRatio = remember(photo.id, photo.localPath, photo.renderedImagePath) {
+        photoAspectRatio(photo.localPath ?: photo.renderedImagePath)
+    }
 
     LaunchedEffect(state.lutIntensity, photo.id) {
         draftIntensity = state.lutIntensity
@@ -105,7 +112,7 @@ fun PreviewScreen(state: LutShopAppState) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(0.78f)
+                .aspectRatio(photoAspectRatio)
                 .clip(RoundedCornerShape(18.dp))
         ) {
             if (compareMode) {
@@ -121,7 +128,8 @@ fun PreviewScreen(state: LutShopAppState) {
                     localPath = photo.localPath,
                     fallbackColors = photo.palette,
                     modifier = Modifier.matchParentSize(),
-                    renderedImagePath = photo.renderedImagePath
+                    renderedImagePath = photo.renderedImagePath,
+                    contentScale = ContentScale.Fit
                 )
             }
             // LUT name overlay
@@ -179,7 +187,12 @@ fun PreviewScreen(state: LutShopAppState) {
                         .clickable { state.activeLutId = lut.id }
                         .padding(10.dp)
                 ) {
-                    LutStrip(lut.previewColors, Modifier.fillMaxWidth())
+                    LutStrip(
+                        lut.previewColors,
+                        Modifier
+                            .width((58 * photoAspectRatio).dp)
+                            .height(58.dp)
+                    )
                     Text(lut.name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
                     lut.confidence?.let {
                         Text(stringResource(R.string.cv_percent, it), color = AccentGreen, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -236,6 +249,20 @@ fun PreviewScreen(state: LutShopAppState) {
     }
 }
 
+private fun photoAspectRatio(path: String?): Float {
+    if (path.isNullOrBlank()) return 1f
+    val file = File(path)
+    if (!file.exists()) return 1f
+    val options = BitmapFactory.Options().apply {
+        inJustDecodeBounds = true
+    }
+    BitmapFactory.decodeFile(path, options)
+    val width = options.outWidth
+    val height = options.outHeight
+    if (width <= 1 || height <= 1) return 1f
+    return (width.toFloat() / height.toFloat()).coerceIn(0.62f, 1.58f)
+}
+
 @Composable
 private fun BeforeAfterCompare(
     beforeImagePath: String?,
@@ -264,20 +291,25 @@ private fun BeforeAfterCompare(
             localPath = afterImagePath,
             fallbackColors = emptyList(),
             modifier = Modifier.matchParentSize(),
-            renderedImagePath = afterImagePath
+            renderedImagePath = afterImagePath,
+            contentScale = ContentScale.Fit
         )
         // Before (clipped to left of split)
         val clipWidthDp = with(density) { (containerSize.width * splitPosition).toDp() }
+        val fullWidthDp = with(density) { containerSize.width.toDp() }
+        val fullHeightDp = with(density) { containerSize.height.toDp() }
         Box(modifier = Modifier
-            .fillMaxSize()
             .width(clipWidthDp)
+            .height(fullHeightDp)
+            .clipToBounds()
         ) {
             PhotoAsset(
                 uri = "",
                 localPath = beforeImagePath,
                 fallbackColors = emptyList(),
-                modifier = Modifier.matchParentSize(),
-                renderedImagePath = null
+                modifier = Modifier.requiredSize(fullWidthDp, fullHeightDp),
+                renderedImagePath = null,
+                contentScale = ContentScale.Fit
             )
         }
         // Divider line

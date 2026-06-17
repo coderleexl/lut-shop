@@ -1,14 +1,29 @@
 import SwiftUI
+import UIKit
 
 struct PreviewView: View {
     @EnvironmentObject private var state: LutShopAppState
     @State private var draftLutIntensity = 0.72
     @State private var isEditingLutIntensity = false
     @State private var isApplyingPreview = false
-    @State private var pendingIntensityWorkItem: DispatchWorkItem?
+    @State private var pendingIntensityTask: Task<Void, Never>?
 
     private var visibleLutIntensity: Double {
         isEditingLutIntensity ? draftLutIntensity : state.lutIntensity
+    }
+
+    private var currentPhotoPreviewAspectRatio: CGFloat {
+        guard let photo = state.currentPhoto else { return 1 }
+        let image: UIImage?
+        if let path = photo.imagePath {
+            image = UIImage(contentsOfFile: path)
+        } else if let url = Bundle.main.url(forResource: photo.imageName, withExtension: "jpg", subdirectory: "PrototypePhotos") {
+            image = UIImage(contentsOfFile: url.path)
+        } else {
+            image = nil
+        }
+        guard let size = image?.size, size.width > 1, size.height > 1 else { return 1 }
+        return min(max(size.width / size.height, 0.62), 1.58)
     }
 
     var body: some View {
@@ -110,7 +125,7 @@ struct PreviewView: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .aspectRatio(0.78, contentMode: .fit)
+            .aspectRatio(currentPhotoPreviewAspectRatio, contentMode: .fit)
     }
 
     private var applyingOverlay: some View {
@@ -141,8 +156,10 @@ struct PreviewView: View {
 
                 if state.previewCompareEnabled {
                     previewImage(isBefore: true)
-                        .frame(width: dividerX, alignment: .leading)
-                        .clipped()
+                        .mask(alignment: .leading) {
+                            Rectangle()
+                                .frame(width: dividerX)
+                        }
 
                     compareDivider(x: dividerX)
                 }
@@ -171,7 +188,9 @@ struct PreviewView: View {
                     watermarkSettings: nil,
                     exifSummary: photo.exifSummary,
                     fileName: photo.fileName,
-                    sessionName: photo.sessionName
+                    sessionName: photo.sessionName,
+                    contentMode: .fit,
+                    imageScale: 1
                 )
             } else {
                 LinearGradient(colors: [.gray, .black], startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -201,6 +220,8 @@ struct PreviewView: View {
     private var lutRecommendations: some View {
         let renderableLuts = state.luts.filter(\.hasRenderableSource)
         let recommended = state.recommendedLuts.filter(\.hasRenderableSource)
+        let thumbnailHeight: CGFloat = 58
+        let thumbnailWidth = thumbnailHeight * currentPhotoPreviewAspectRatio
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 ForEach(recommended + renderableLuts.filter { !recommended.contains($0) }) { lut in
@@ -209,8 +230,10 @@ struct PreviewView: View {
                         state.validateLutLoad(lut.id)
                     } label: {
                         VStack(alignment: .leading, spacing: 8) {
-                            LutStrip(colors: lut.previewColors)
-                                .frame(width: 112, height: 34)
+                            LutStrip(colors: lut.previewColors, cornerRadius: 8)
+                                .frame(width: thumbnailWidth, height: thumbnailHeight)
+                                .background(.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 8))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(.white.opacity(0.08)))
                             Text(lut.name)
                                 .font(.system(size: 12, weight: .semibold))
                                 .lineLimit(1)
@@ -221,7 +244,7 @@ struct PreviewView: View {
                             }
                         }
                         .padding(10)
-                        .frame(width: 132, alignment: .leading)
+                        .frame(width: max(104, thumbnailWidth + 20), alignment: .leading)
                         .background(.white.opacity(state.activeLutId == lut.id ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 12))
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(state.activeLutId == lut.id ? Color.accentGreen : .white.opacity(0.06)))
                     }
@@ -281,7 +304,7 @@ struct PreviewView: View {
     private func handleLutIntensityEditingChanged(_ isEditing: Bool) {
         isEditingLutIntensity = isEditing
         if isEditing {
-            pendingIntensityWorkItem?.cancel()
+            pendingIntensityTask?.cancel()
             return
         }
 
@@ -291,26 +314,29 @@ struct PreviewView: View {
             return
         }
 
+        pendingIntensityTask?.cancel()
+        state.lutIntensity = clampedIntensity
+        guard clampedIntensity > 0 else {
+            isApplyingPreview = false
+            return
+        }
+
         withAnimation(.easeInOut(duration: 0.16)) {
             isApplyingPreview = true
         }
 
-        let workItem = DispatchWorkItem {
-            state.lutIntensity = clampedIntensity
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                guard !isEditingLutIntensity else { return }
-                withAnimation(.easeInOut(duration: 0.16)) {
-                    isApplyingPreview = false
-                }
+        pendingIntensityTask = Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled, !isEditingLutIntensity else { return }
+            withAnimation(.easeInOut(duration: 0.16)) {
+                isApplyingPreview = false
             }
         }
-        pendingIntensityWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: workItem)
     }
 
     private func syncDraftIntensity() {
         draftLutIntensity = min(max(state.lutIntensity, 0), 1)
         isApplyingPreview = false
-        pendingIntensityWorkItem?.cancel()
+        pendingIntensityTask?.cancel()
     }
 }

@@ -411,7 +411,7 @@ final class LutShopAppState: ObservableObject {
         persistLibraryState()
     }
 
-    func exportSelectedPhotosToLocalFiles() async -> Int {
+    func exportSelectedPhotosToLocalFiles(progressHandler: ((Int, Int) async -> Void)? = nil) async -> Int {
         let exportPhotos = selectedPhotos
         guard !exportPhotos.isEmpty else { return 0 }
 
@@ -424,7 +424,16 @@ final class LutShopAppState: ObservableObject {
         }
 
         var exportedCount = 0
-        for photo in exportPhotos {
+        let totalCount = exportPhotos.count
+        for (offset, photo) in exportPhotos.enumerated() {
+            defer {
+                let completedCount = offset + 1
+                if let progressHandler {
+                    Task {
+                        await progressHandler(completedCount, totalCount)
+                    }
+                }
+            }
             guard let image = renderedImage(for: photo) else { continue }
             let resized = resizedImage(image, setting: exportSettings.size)
             let outputImage = WatermarkRenderer.render(

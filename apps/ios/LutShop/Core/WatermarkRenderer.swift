@@ -56,11 +56,18 @@ enum WatermarkRenderer {
         let imageSize = sourceImage.size
         guard imageSize.width > 1, imageSize.height > 1 else { return image }
 
-        let shortSide = min(imageSize.width, imageSize.height)
+        let layoutScale = watermarkLayoutScale(for: imageSize)
+        let layoutImageSize = CGSize(
+            width: imageSize.width * layoutScale,
+            height: imageSize.height * layoutScale
+        )
+        let shortSide = min(layoutImageSize.width, layoutImageSize.height)
         let ratio = imageSize.width / imageSize.height
         let isPortrait = ratio < 0.88
-        let outerPadding = outerPadding(for: settings.style, shortSide: shortSide)
-        let footerHeight = footerHeight(for: settings.style, imageSize: imageSize, isPortrait: isPortrait)
+        let layoutOuterPadding = outerPadding(for: settings.style, shortSide: shortSide)
+        let layoutFooterHeight = footerHeight(for: settings.style, imageSize: layoutImageSize, isPortrait: isPortrait)
+        let outerPadding = layoutOuterPadding / layoutScale
+        let footerHeight = layoutFooterHeight / layoutScale
         let canvasSize = CGSize(
             width: imageSize.width + outerPadding * 2,
             height: imageSize.height + outerPadding + footerHeight
@@ -71,7 +78,7 @@ enum WatermarkRenderer {
             width: imageSize.width,
             height: imageSize.height
         )
-        let radius = clamp(shortSide * 0.095 * CGFloat(settings.cornerRadius), min: 0, max: shortSide * 0.08)
+        let radius = clamp(shortSide * 0.095 * CGFloat(settings.cornerRadius), min: 0, max: shortSide * 0.08) / layoutScale
 
         let format = UIGraphicsImageRendererFormat()
         format.scale = image.scale
@@ -88,20 +95,30 @@ enum WatermarkRenderer {
             context.cgContext.restoreGState()
 
             UIColor.black.withAlphaComponent(0.08).setStroke()
-            path.lineWidth = max(1, shortSide * 0.0015)
+            path.lineWidth = max(1, shortSide * 0.0015) / layoutScale
             path.stroke()
 
+            context.cgContext.saveGState()
+            context.cgContext.translateBy(x: outerPadding, y: imageRect.maxY)
+            context.cgContext.scaleBy(x: 1 / layoutScale, y: 1 / layoutScale)
             drawFooter(
                 in: CGRect(
-                    x: outerPadding,
-                    y: imageRect.maxY,
-                    width: imageSize.width,
-                    height: footerHeight
+                    x: 0,
+                    y: 0,
+                    width: layoutImageSize.width,
+                    height: layoutFooterHeight
                 ),
                 photo: photo,
                 settings: settings
             )
+            context.cgContext.restoreGState()
         }
+    }
+
+    private static func watermarkLayoutScale(for imageSize: CGSize) -> CGFloat {
+        let longestSide = max(imageSize.width, imageSize.height)
+        guard longestSide > 1 else { return 1 }
+        return min(1, 2048 / longestSide)
     }
 
     private static func outerPadding(for style: WatermarkStyle, shortSide: CGFloat) -> CGFloat {
@@ -236,13 +253,15 @@ enum WatermarkRenderer {
         date: String?,
         brandSource: String
     ) {
-        let contentTop = rect.minY + rect.height * 0.14
-        let contentHeight = rect.height * 0.68
-        let gap = clamp(rect.width * 0.02, min: 12, max: 46)
+        let horizontalInset = clamp(rect.width * 0.018, min: 22, max: 44)
+        let contentRect = rect.insetBy(dx: horizontalInset, dy: 0)
+        let contentTop = rect.minY + rect.height * 0.18
+        let contentHeight = rect.height * 0.64
+        let gap = clamp(contentRect.width * 0.022, min: 14, max: 52)
         let logoSize = clamp(contentHeight * 0.98, min: 56, max: rect.width * 0.13)
-        let rightWidth = clamp(rect.width * 0.31, min: rect.width * 0.25, max: rect.width * 0.38)
-        let rightX = rect.maxX - rightWidth
-        let separatorWidth = max(1, rect.width * 0.001)
+        let rightWidth = clamp(contentRect.width * 0.31, min: contentRect.width * 0.25, max: contentRect.width * 0.38)
+        let rightX = contentRect.maxX - rightWidth
+        let separatorWidth = max(1, contentRect.width * 0.001)
         let separatorX = rightX - gap * 0.72
         let logoRect = CGRect(
             x: separatorX - gap - logoSize,
@@ -250,8 +269,8 @@ enum WatermarkRenderer {
             width: logoSize,
             height: logoSize
         )
-        let leftTextX = rect.minX
-        let leftTextWidth = max(1, logoRect.minX - rect.minX - gap)
+        let leftTextX = contentRect.minX
+        let leftTextWidth = max(1, logoRect.minX - contentRect.minX - gap)
 
         UIColor.black.withAlphaComponent(0.12).setFill()
         UIBezierPath(
@@ -279,8 +298,8 @@ enum WatermarkRenderer {
 
         let topFont = clamp(rect.height * 0.2, min: 16, max: 34)
         let bottomFont = clamp(rect.height * 0.155, min: 12, max: 25)
-        let topRect = CGRect(x: leftTextX, y: contentTop + contentHeight * 0.1, width: leftTextWidth, height: contentHeight * 0.34)
-        let bottomRect = CGRect(x: leftTextX, y: contentTop + contentHeight * 0.55, width: leftTextWidth, height: contentHeight * 0.28)
+        let topRect = CGRect(x: leftTextX, y: contentTop + contentHeight * 0.14, width: leftTextWidth, height: contentHeight * 0.32)
+        let bottomRect = CGRect(x: leftTextX, y: contentTop + contentHeight * 0.56, width: leftTextWidth, height: contentHeight * 0.27)
 
         drawFitted(
             camera,

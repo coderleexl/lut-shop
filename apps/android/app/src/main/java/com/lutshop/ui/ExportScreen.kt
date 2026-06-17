@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lutshop.LutShopAppState
 import com.lutshop.R
-import com.lutshop.WatermarkStyle
 import com.lutshop.core.LutRenderer
 import com.lutshop.export.PhotoExporter
 import kotlinx.coroutines.Dispatchers
@@ -92,7 +91,7 @@ fun ExportScreen(state: LutShopAppState) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Format
-            SettingRow(stringResource(R.string.format_value, "")) {
+            SettingRow {
                 SegmentedPicker(
                     options = listOf("JPG", "PNG"),
                     selected = state.exportSettings.format,
@@ -100,7 +99,7 @@ fun ExportScreen(state: LutShopAppState) {
                 )
             }
             // Size
-            SettingRow(stringResource(R.string.size_value, "")) {
+            SettingRow {
                 SegmentedPicker(
                     options = listOf("Original", "2048px", "1080px"),
                     selected = state.exportSettings.size,
@@ -108,7 +107,7 @@ fun ExportScreen(state: LutShopAppState) {
                 )
             }
             // Quality
-            SettingRow(stringResource(R.string.quality_value, "")) {
+            SettingRow {
                 SegmentedPicker(
                     options = listOf("High", "Medium", "Low"),
                     selected = state.exportSettings.quality,
@@ -121,12 +120,6 @@ fun ExportScreen(state: LutShopAppState) {
                 Switch(checked = state.exportSettings.preserveExif, onCheckedChange = {
                     state.exportSettings = state.exportSettings.copy(preserveExif = it)
                 })
-            }
-            SettingRow(stringResource(R.string.watermark)) {
-                WatermarkStylePicker(
-                    selected = state.exportSettings.watermarkStyle,
-                    onSelect = { state.exportSettings = state.exportSettings.copy(watermarkStyle = it) }
-                )
             }
         }
 
@@ -179,40 +172,12 @@ fun ExportScreen(state: LutShopAppState) {
 }
 
 @Composable
-private fun SettingRow(label: String, content: @Composable () -> Unit) {
+private fun SettingRow(content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         content()
     }
 }
 
-@Composable
-private fun WatermarkStylePicker(selected: WatermarkStyle, onSelect: (WatermarkStyle) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color.White.copy(alpha = 0.06f))
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        WatermarkStyle.entries.forEach { style ->
-            val isSelected = style == selected
-            Text(
-                stringResource(style.labelRes),
-                color = if (isSelected) Color.Black else Color.White.copy(alpha = 0.7f),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (isSelected) AccentGreen else Color.Transparent)
-                    .clickable { onSelect(style) }
-                    .padding(vertical = 8.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-        }
-    }
-}
 
 @Composable
 private fun SegmentedPicker(options: List<String>, selected: String, onSelect: (String) -> Unit) {
